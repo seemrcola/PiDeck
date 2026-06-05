@@ -13,18 +13,35 @@ All notable changes to pi-desktop are documented here.
   supportsReasoningEffort options, no manual JSON editing required.
 - Image preview in composer: click thumbnail images to view full-size
   preview in modal.
+- Modified files list in file drawer: shows files changed by the current
+  session's agent at the top of the file drawer.
+- Right-click context menu on modified files: open file, reveal in folder,
+  or reference in composer.
+- Session duration display: total elapsed time shown in the status bar
+  after session ends (e.g., 3.2s / 1m23s).
+- Reload/Restart button loading state: buttons show loading text and
+  become disabled during agent restart.
 
 ### Fixed
 - Error detection logic: prevented normal tool outputs (e.g., "Successfully
   replaced") from being displayed as error messages.
 - Image preview area overlapping with textarea: adjusted grid layout so
   image preview occupies its own row.
+- Agent error handling: error messages are now written into the session
+  when agent ends abnormally (API errors, etc.), preventing blank responses.
+- agent_end error extraction: iterates through messages array to find
+  error messages instead of relying on fixed position.
+- Modified files list readability: increased font size and color contrast.
+- Git branch selector: now shows only local branches, removed remote
+  branches from dropdown.
 
 ### Improved
 - Config modal UI: width increased to 900px, export/import buttons
   match save button style, provider expand area has more spacing,
   delete button icons unified.
 - Close button color darkened for better visibility.
+- Removed Reload button: `/reload` cannot be correctly executed via RPC
+  prompt, unified to use Restart button for all reload scenarios.
 
 ## v0.4.4 - 2026-06-05
 
