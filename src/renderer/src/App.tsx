@@ -1147,12 +1147,6 @@ export function App() {
 					)}
 					{activeAgent && (
 						<div className="message-list">
-							{isAwaitingAssistant && (
-								<ThinkingBubble
-									thinking={activeThinking}
-									showThinking={settings.showThinking}
-								/>
-							)}
 							{renderedMessages.map((item) =>
 								item.kind === "tool-group" ? (
 									<ToolGroup key={item.id} group={item} />
@@ -1164,6 +1158,12 @@ export function App() {
 										showThinking={settings.showThinking}
 									/>
 								),
+							)}
+							{isAwaitingAssistant && (
+								<ThinkingBubble
+									thinking={activeThinking}
+									showThinking={settings.showThinking}
+								/>
 							)}
 							{pendingPrompts.map((prompt) => (
 								<PendingBubble
