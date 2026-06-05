@@ -1534,7 +1534,9 @@ function ComposerToolbar(props: {
 			<button onClick={props.onPickModel} disabled={props.disabled}>
 				Model: {props.state?.modelName ?? "-"}
 			</button>
-			<button onClick={props.onCycleModel} disabled={props.disabled}>Cycle Model</button>
+			<button onClick={props.onCycleModel} disabled={props.disabled}>
+				Cycle Model
+			</button>
 			<button onClick={props.onCycleThinking} disabled={props.disabled}>
 				Think: {props.state?.thinkingLevel ?? "-"}
 			</button>
@@ -2046,18 +2048,7 @@ function ResponseBubble(props: {
 						)}
 					</div>
 				)}
-				{/* 合并后的 assistant 文字 */}
-				{cleanText && (
-					<div className="msg-bubble">
-						<ReactMarkdown
-							remarkPlugins={[remarkGfm]}
-							components={{ pre: CodeBlock, a: MarkdownLink }}
-						>
-							{cleanText}
-						</ReactMarkdown>
-					</div>
-				)}
-				{/* 工具调用：紧凑内联展示，避免拆成独立气泡 */}
+				{/* 工具调用放在思考下方、回答上方。 */}
 				{group.tools.length > 0 && (
 					<div className="tool-group">
 						<button
@@ -2069,7 +2060,7 @@ function ResponseBubble(props: {
 									? "工具调用中"
 									: failed
 										? "工具调用有错误"
-										: "工具调用"}
+										: "调用完成"}
 							</span>
 							<strong>{group.tools.length} 条</strong>
 							<em>{expanded ? "收起" : "展开"}</em>
@@ -2081,6 +2072,17 @@ function ResponseBubble(props: {
 								))}
 							</div>
 						)}
+					</div>
+				)}
+				{/* 回答文字放在最底部。 */}
+				{cleanText && (
+					<div className="msg-bubble">
+						<ReactMarkdown
+							remarkPlugins={[remarkGfm]}
+							components={{ pre: CodeBlock, a: MarkdownLink }}
+						>
+							{cleanText}
+						</ReactMarkdown>
 					</div>
 				)}
 			</div>
