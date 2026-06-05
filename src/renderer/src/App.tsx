@@ -1147,6 +1147,12 @@ export function App() {
 					)}
 					{activeAgent && (
 						<div className="message-list">
+							{isAwaitingAssistant && (
+								<ThinkingBubble
+									thinking={activeThinking}
+									showThinking={settings.showThinking}
+								/>
+							)}
 							{renderedMessages.map((item) =>
 								item.kind === "tool-group" ? (
 									<ToolGroup key={item.id} group={item} />
@@ -1158,12 +1164,6 @@ export function App() {
 										showThinking={settings.showThinking}
 									/>
 								),
-							)}
-							{isAwaitingAssistant && (
-								<ThinkingBubble
-									thinking={activeThinking}
-									showThinking={settings.showThinking}
-								/>
 							)}
 							{pendingPrompts.map((prompt) => (
 								<PendingBubble
@@ -1956,9 +1956,11 @@ function ToolGroup(props: { group: ToolGroupItem }) {
 	const visible = expanded
 		? props.group.messages
 		: props.group.messages.slice(0, 3);
-	const running = props.group.messages.some(
-		(message) => message.meta?.status === "running",
-	);
+	// 工具启动消息永远保留 status "running"，所以需要检查最后一条消息的状态来判断是否还在执行中
+	const running =
+		props.group.messages.length > 0 &&
+		props.group.messages[props.group.messages.length - 1].meta?.status ===
+			"running";
 	const failed = props.group.messages.some(
 		(message) =>
 			message.meta?.status === "error" || message.meta?.isError === true,
