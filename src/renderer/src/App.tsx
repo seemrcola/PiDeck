@@ -1085,12 +1085,6 @@ export function App() {
 					)}
 					{activeAgent && (
 						<div className="message-list">
-							{isAwaitingAssistant && (
-								<ThinkingBubble
-									thinking={activeThinking}
-									showThinking={settings.showThinking}
-								/>
-							)}
 							{renderedMessages.map((item) =>
 								item.kind === "tool-group" ? (
 									<ToolGroup key={item.id} group={item} />
@@ -1109,6 +1103,12 @@ export function App() {
 										showThinking={settings.showThinking}
 									/>
 								),
+							)}
+							{isAwaitingAssistant && (
+								<ThinkingBubble
+									thinking={activeThinking}
+									showThinking={settings.showThinking}
+								/>
 							)}
 							{pendingPrompts.map((item) => (
 								<PendingBubble
@@ -2010,7 +2010,9 @@ function ResponseBubble(props: {
 		thinkingExpanded || !thinkingNeedsTruncate
 			? (group.thinking ?? "")
 			: (group.thinking ?? "").slice(0, thinkingPreviewLen) + "\u2026";
-	const running = group.tools.length > 0 && group.tools[group.tools.length - 1].meta?.status === "running";
+	const running =
+		group.tools.length > 0 &&
+		group.tools[group.tools.length - 1].meta?.status === "running";
 	const failed = group.tools.some(
 		(m) => m.meta?.status === "error" || m.meta?.isError === true,
 	);
