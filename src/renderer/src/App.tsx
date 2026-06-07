@@ -10,6 +10,7 @@ import {
 	Sliders,
 	ChevronLeft,
 	ChevronRight,
+	Info,
 	Search,
 	Play,
 } from "lucide-react";
@@ -37,6 +38,7 @@ import {
 	ProjectContextMenu,
 	PromptSuggestions,
 	RpcLogModal,
+	SessionHistoryModal,
 	SessionStatus,
 	SettingsModal,
 	ThinkingBubble,
@@ -162,6 +164,8 @@ export function App() {
 	const [toast, setToast] = useState<string | null>(null);
 	const [compacting, setCompacting] = useState(false);
 	const [drawer, setDrawer] = useState<DrawerPanel | null>(null);
+	const [sessionsProjectId, setSessionsProjectId] = useState<string>();
+	const [sessionHistoryLoading, setSessionHistoryLoading] = useState(false);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [configOpen, setConfigOpen] = useState(false);
 	const [_debugOpen, _setDebugOpen] = useState(false);
@@ -212,6 +216,9 @@ export function App() {
 	const activeProject = projects.find(
 		(project) => project.id === activeProjectId,
 	);
+	const sessionsProject = projects.find(
+		(project) => project.id === sessionsProjectId,
+	);
 	const activeAgent = agents.find((agent) => agent.id === activeAgentId);
 	const activeMessages = activeAgentId
 		? (messagesByAgent[activeAgentId] ?? [])
@@ -239,8 +246,10 @@ export function App() {
 			? "静默命令：直接执行，不写入上下文"
 			: composerMode === "shell"
 				? "Shell 命令：直接执行当前输入"
-				: drawer
-					? "右侧面板可查看文件或恢复历史会话"
+				: drawer === "files"
+					? "右侧面板可查看文件"
+					: drawer === "sessions"
+						? `右侧面板正在显示 ${sessionsProject?.name ?? "项目"} 的历史会话`
 					: (activeAgent?.sessionPath ?? "");
 	/** 当前会话中 agent 修改过的文件（从 tool 消息 meta 中提取） */
 	const modifiedFiles = useMemo(() => {
@@ -476,7 +485,6 @@ export function App() {
 			.branches(activeProjectId)
 			.then(setGitInfo)
 			.catch(() => setGitInfo({ current: null, branches: [] }));
-		void refreshSessions(activeProjectId);
 	}, [activeProjectId, agents.length]);
 
 	async function checkPiInstall(source: "startup" | "manual" = "manual") {
@@ -510,6 +518,33 @@ export function App() {
 		setSessions(next);
 	}
 
+	async function openProjectSessions(project: Project) {
+		setProjectMenu(null);
+		setActiveProjectId(project.id);
+		setSessionsProjectId(project.id);
+		setSessions([]);
+		setDrawer((current) => (current === "sessions" ? null : current));
+		setSessionHistoryLoading(true);
+		try {
+			await refreshSessions(project.id);
+		} finally {
+			setSessionHistoryLoading(false);
+		}
+	}
+
+	async function openHistorySession(session: SessionSummary) {
+		const projectId = sessionsProjectId;
+		if (!projectId) return;
+		setSessionsProjectId(undefined);
+		setSessions([]);
+		await createAgent(projectId, session.filePath, session.name || "历史会话");
+	}
+
+	async function renameHistorySession(filePath: string, newName: string) {
+		await api.sessions.rename(filePath, newName);
+		if (sessionsProjectId) await refreshSessions(sessionsProjectId);
+	}
+
 	async function openCodexImport(project: Project) {
 		setProjectMenu(null);
 		setCodexImportProject(project);
@@ -529,11 +564,8 @@ export function App() {
 		try {
 			const next = await api.codexSessions.scan(project.id);
 			setCodexImportSessions(next);
-			setCodexImportSelected(
-				next
-					.filter((session) => session.status !== "current")
-					.map((session) => session.sourcePath),
-			);
+			// 默认不自动勾选任何会话，避免用户未确认时批量覆盖已导入历史。
+			setCodexImportSelected([]);
 		} catch (error) {
 			setToast(
 				`扫描 Codex 会话失败：${error instanceof Error ? error.message : String(error)}`,
@@ -572,7 +604,8 @@ export function App() {
 			);
 			setCodexImportReport(report);
 			await scanCodexSessions(codexImportProject, false);
-			await refreshSessions(codexImportProject.id);
+			if (sessionsProjectId === codexImportProject.id)
+				await refreshSessions(codexImportProject.id);
 			setToast(`Codex 会话导入完成：${report.imported} 成功，${report.failed} 失败`);
 			setTimeout(() => setToast(null), 3500);
 		} catch (error) {
@@ -593,6 +626,17 @@ export function App() {
 		setActiveAgentId(undefined);
 	}
 
+	function updateAfterProjectRemoved(removedProjectId: string, next: Project[]) {
+		if (activeProjectId === removedProjectId) {
+			setActiveProjectId(next[0]?.id);
+			setActiveAgentId(undefined);
+		}
+		if (sessionsProjectId === removedProjectId) {
+			setSessionsProjectId(undefined);
+			if (drawer === "sessions") setDrawer(null);
+		}
+	}
+
 	async function createAgent(
 		projectId = activeProjectId,
 		sessionPath?: string,
@@ -603,10 +647,12 @@ export function App() {
 			? agents.find((agent) => agent.sessionPath === sessionPath)
 			: undefined;
 		if (existing) {
+			setActiveProjectId(existing.projectId);
 			setActiveAgentId(existing.id);
 			setDrawer(null);
 			return;
 		}
+		setActiveProjectId(projectId);
 		// 立即关闭抽屉，避免等待 agent 加载期间列表仍然显示
 		setDrawer(null);
 		try {
@@ -1082,6 +1128,10 @@ export function App() {
 	}
 
 	function openDrawer(panel: DrawerPanel) {
+		if (panel === "sessions" && activeProjectId) {
+			setSessionsProjectId(activeProjectId);
+			void refreshSessions(activeProjectId);
+		}
 		setDrawer((current) => (current === panel ? null : panel));
 	}
 
@@ -1281,20 +1331,26 @@ export function App() {
 										</div>
 										<p>{displayPath(project.path)}</p>
 									</div>
-									<span
-										className="conversation-close"
-										title="删除目录记录"
-										onClick={async (event) => {
-											event.stopPropagation();
-											const next = await api.projects.remove(project.id);
-											setProjects(next);
-											if (activeProjectId === project.id) {
-												setActiveProjectId(next[0]?.id);
-												setActiveAgentId(undefined);
-											}
-										}}
-									>
-										×
+									<span className="project-row-actions">
+										<span
+											className="project-info"
+											title="右键项目可打开历史会话、导入 Codex 会话或删除目录记录；点击项目可切换或折叠该目录的 Agent。"
+											onClick={(event) => event.stopPropagation()}
+										>
+											<Info size={14} />
+										</span>
+										<span
+											className="conversation-close"
+											title="删除目录记录"
+											onClick={async (event) => {
+												event.stopPropagation();
+												const next = await api.projects.remove(project.id);
+												setProjects(next);
+												updateAfterProjectRemoved(project.id, next);
+											}}
+										>
+											×
+										</span>
 									</span>
 								</button>
 								{!isCollapsed &&
@@ -1434,15 +1490,6 @@ export function App() {
 									}}
 								>
 									Files
-								</button>
-								<button
-									className={drawer === "sessions" ? "active" : ""}
-									onClick={() => {
-										setDrawerCollapsed(false);
-										openDrawer("sessions");
-									}}
-								>
-									History
 								</button>
 								<button
 									className={terminalOpen ? "active" : ""}
@@ -1693,6 +1740,7 @@ export function App() {
 					</button>
 					<DrawerContent
 						panel={drawer}
+						project={drawer === "sessions" ? sessionsProject : undefined}
 						files={files}
 						sessions={sessions}
 						modifiedFiles={modifiedFiles}
@@ -1700,17 +1748,19 @@ export function App() {
 						onToggleDirectory={toggleDirectory}
 						onClose={() => setDrawer(null)}
 						onFileContextMenu={(node, x, y) => setFileMenu({ node, x, y })}
-						onRefreshSessions={() => refreshSessions()}
+						onRefreshSessions={() =>
+							refreshSessions(sessionsProjectId ?? activeProjectId)
+						}
 						onOpenSession={(session) =>
 							createAgent(
-								activeProjectId,
+								sessionsProjectId ?? activeProjectId,
 								session.filePath,
 								session.name || "历史会话",
 							)
 						}
 						onRenameSession={async (filePath, newName) => {
 							await api.sessions.rename(filePath, newName);
-							await refreshSessions();
+							await refreshSessions(sessionsProjectId ?? activeProjectId);
 						}}
 					/>
 				</aside>
@@ -1749,16 +1799,14 @@ export function App() {
 				<ProjectContextMenu
 					menu={projectMenu}
 					onClose={() => setProjectMenu(null)}
+					onOpenSessions={() => openProjectSessions(projectMenu.project)}
 					onImportCodexSessions={() => openCodexImport(projectMenu.project)}
 					onRemoveProject={async () => {
 						const project = projectMenu.project;
 						setProjectMenu(null);
 						const next = await api.projects.remove(project.id);
 						setProjects(next);
-						if (activeProjectId === project.id) {
-							setActiveProjectId(next[0]?.id);
-							setActiveAgentId(undefined);
-						}
+						updateAfterProjectRemoved(project.id, next);
 					}}
 				/>
 			)}
@@ -1858,6 +1906,20 @@ export function App() {
 					onToggle={toggleCodexSession}
 					onToggleAll={toggleAllCodexSessions}
 					onImport={importCodexSessions}
+				/>
+			)}
+			{sessionsProject && (
+				<SessionHistoryModal
+					project={sessionsProject}
+					sessions={sessions}
+					loading={sessionHistoryLoading}
+					onClose={() => {
+						setSessionsProjectId(undefined);
+						setSessions([]);
+					}}
+					onRefresh={() => refreshSessions(sessionsProject.id)}
+					onOpen={openHistorySession}
+					onRename={renameHistorySession}
 				/>
 			)}
 			<ConfigModal

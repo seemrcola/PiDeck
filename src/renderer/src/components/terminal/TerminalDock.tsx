@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import {
+	useEffect,
+	useRef,
+	useState,
+	type MouseEvent as ReactMouseEvent,
+	type PointerEvent,
+} from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -68,11 +74,13 @@ export function TerminalDock(props: {
 	const fitRef = useRef<FitAddon | null>(null);
 	const activeTabIdRef = useRef("");
 	const buffersRef = useRef<Record<string, string>>({});
+	const copyNoticeTimerRef = useRef<number | null>(null);
 	const [collapsed, setCollapsed] = useState(false);
 	const [tabs, setTabs] = useState<TerminalTab[]>([]);
 	const [activeTabId, setActiveTabId] = useState("");
 	const [themeId, setThemeId] = useState<TerminalThemeId>("pi-soft");
 	const [confirmCloseAllOpen, setConfirmCloseAllOpen] = useState(false);
+	const [copyNotice, setCopyNotice] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0];
 	const theme = TERMINAL_THEMES[themeId];
@@ -187,6 +195,13 @@ export function TerminalDock(props: {
 		requestAnimationFrame(() => xtermRef.current?.focus());
 	}, [activeTab?.id, activeTab?.exited, collapsed]);
 
+	useEffect(
+		() => () => {
+			if (copyNoticeTimerRef.current) window.clearTimeout(copyNoticeTimerRef.current);
+		},
+		[],
+	);
+
 	async function addTab() {
 		const next = await props.terminal.create(props.agentId);
 		setTabs((current) => [...current, next]);
@@ -215,6 +230,25 @@ export function TerminalDock(props: {
 		setTabs([]);
 		setConfirmCloseAllOpen(false);
 		props.onClose();
+	}
+
+	async function copySelectionOnContextMenu(
+		event: ReactMouseEvent<HTMLDivElement>,
+	) {
+		const selection = xtermRef.current?.getSelection();
+		if (!selection) return;
+
+		// xterm 默认右键会落到浏览器菜单；选区存在时直接复制，符合桌面终端的右键复制习惯。
+		event.preventDefault();
+		event.stopPropagation();
+		await navigator.clipboard.writeText(selection);
+		setCopyNotice(true);
+		if (copyNoticeTimerRef.current) window.clearTimeout(copyNoticeTimerRef.current);
+		copyNoticeTimerRef.current = window.setTimeout(
+			() => setCopyNotice(false),
+			1200,
+		);
+		xtermRef.current?.focus();
 	}
 
 	function startResize(event: PointerEvent<HTMLDivElement>) {
@@ -322,9 +356,13 @@ export function TerminalDock(props: {
 				</div>
 			</header>
 			{!collapsed && (
-				<div className="terminal-pane-shell">
+				<div
+					className="terminal-pane-shell"
+					onContextMenu={(event) => void copySelectionOnContextMenu(event)}
+				>
 					{loading && <div className="terminal-placeholder">正在启动终端…</div>}
 					<div ref={containerRef} className="terminal-xterm" />
+					{copyNotice && <div className="terminal-copy-notice">已复制</div>}
 				</div>
 			)}
 			{confirmCloseAllOpen && (

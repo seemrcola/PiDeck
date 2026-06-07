@@ -15,6 +15,7 @@ import {
 	GitBranch,
 	Brain,
 	Network,
+	Pencil,
 	RefreshCw,
 	Settings2,
 	UploadCloud,
@@ -1135,6 +1136,7 @@ function clampOutlineTop(value: number) {
 
 export function DrawerContent(props: {
 	panel: DrawerPanel;
+	project?: Project;
 	files: FileTreeNode[];
 	sessions: SessionSummary[];
 	modifiedFiles: { path: string; toolName: string; status: string }[];
@@ -1146,7 +1148,12 @@ export function DrawerContent(props: {
 	onOpenSession: (session: SessionSummary) => void;
 	onRenameSession: (filePath: string, newName: string) => void;
 }) {
-	const title = props.panel === "files" ? "文件" : "历史会话";
+	const title =
+		props.panel === "files"
+			? "文件"
+			: props.project
+				? `${props.project.name} · 历史会话`
+				: "历史会话";
 	return (
 		<>
 			<div className="drawer-header">
@@ -1294,7 +1301,7 @@ function SessionsPanel(props: {
 	sessions: SessionSummary[];
 	onRefresh: () => void;
 	onOpen: (session: SessionSummary) => void;
-	onRename: (filePath: string, newName: string) => void;
+	onRename: (filePath: string, newName: string) => void | Promise<void>;
 }) {
 	const [renamingPath, setRenamingPath] = useState<string | null>(null);
 	const [editValue, setEditValue] = useState("");
@@ -1308,7 +1315,7 @@ function SessionsPanel(props: {
 
 	function confirmRename() {
 		if (renamingPath && editValue.trim()) {
-			props.onRename(renamingPath, editValue.trim());
+			void props.onRename(renamingPath, editValue.trim());
 		}
 		setRenamingPath(null);
 		setEditValue("");
@@ -1320,14 +1327,16 @@ function SessionsPanel(props: {
 				<span>{props.sessions.length} sessions</span>
 				<button onClick={props.onRefresh}>刷新</button>
 			</div>
+			{props.sessions.length === 0 && (
+				<div className="sessions-empty">
+					<strong>暂无历史会话</strong>
+					<span>从项目行右键打开历史会话；新会话完成后会出现在这里。</span>
+				</div>
+			)}
 			{props.sessions.map((session) => (
 				<div
 					key={session.filePath}
 					className="session-card"
-					onContextMenu={(e) => {
-						e.preventDefault();
-						startRename(session);
-					}}
 				>
 					{renamingPath === session.filePath ? (
 						<div className="session-rename-row">
@@ -1342,26 +1351,88 @@ function SessionsPanel(props: {
 										setEditValue("");
 									}
 								}}
-								onBlur={confirmRename}
 								autoFocus
 							/>
+							<button onClick={confirmRename}>保存</button>
+							<button
+								onClick={() => {
+									setRenamingPath(null);
+									setEditValue("");
+								}}
+							>
+								取消
+							</button>
 						</div>
 					) : (
-						<button
-							className="session-card-inner"
-							onClick={() => props.onOpen(session)}
-							title={`${session.filePath} — 右键重命名`}
-						>
-							<strong>{session.name || "Untitled"}</strong>
-							<small>
-								{new Date(session.updatedAt).toLocaleString()} ·{" "}
-								{session.messageCount} messages
-							</small>
-							<p>{session.preview}</p>
-						</button>
+						<div className="session-card-display">
+							<button
+								className="session-card-inner"
+								onClick={() => props.onOpen(session)}
+								title={session.filePath}
+							>
+								<div className="session-card-title">
+									<strong>{session.name || "Untitled"}</strong>
+									<small>
+										{new Date(session.updatedAt).toLocaleString()} ·{" "}
+										{session.messageCount} messages
+									</small>
+								</div>
+								<p>{session.preview}</p>
+							</button>
+							<button
+								className="session-rename-button"
+								title="重命名会话"
+								onClick={() => startRename(session)}
+							>
+								<Pencil size={12} />
+								<span>重命名</span>
+							</button>
+						</div>
 					)}
 				</div>
 			))}
+		</div>
+	);
+}
+
+export function SessionHistoryModal(props: {
+	project: Project;
+	sessions: SessionSummary[];
+	loading: boolean;
+	onClose: () => void;
+	onRefresh: () => void;
+	onOpen: (session: SessionSummary) => void;
+	onRename: (filePath: string, newName: string) => void | Promise<void>;
+}) {
+	return (
+		<div className="modal-backdrop session-history-backdrop">
+			<section className="session-history-modal">
+				<div className="modal-header">
+					<div>
+						<strong>历史会话</strong>
+						<span>{props.project.name}</span>
+					</div>
+					<button onClick={props.onClose}>×</button>
+				</div>
+				<div className="session-history-path" title={props.project.path}>
+					{props.project.path}
+				</div>
+				<div className="session-history-body">
+					{props.loading ? (
+						<div className="session-history-loading">
+							<div className="loader" />
+							<span>正在读取该目录的历史会话...</span>
+						</div>
+					) : (
+						<SessionsPanel
+							sessions={props.sessions}
+							onRefresh={props.onRefresh}
+							onOpen={props.onOpen}
+							onRename={props.onRename}
+						/>
+					)}
+				</div>
+			</section>
 		</div>
 	);
 }
@@ -1586,6 +1657,7 @@ export function FileContextMenu(props: {
 export function ProjectContextMenu(props: {
 	menu: { x: number; y: number; project: Project };
 	onClose: () => void;
+	onOpenSessions: () => void;
 	onImportCodexSessions: () => void;
 	onRemoveProject: () => void;
 }) {
@@ -1596,6 +1668,7 @@ export function ProjectContextMenu(props: {
 				style={{ left: props.menu.x, top: props.menu.y }}
 				onClick={(event) => event.stopPropagation()}
 			>
+				<button onClick={props.onOpenSessions}>历史会话</button>
 				<button onClick={props.onImportCodexSessions}>
 					导入 Codex 会话
 				</button>

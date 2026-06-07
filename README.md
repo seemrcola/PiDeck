@@ -8,7 +8,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Electron](https://img.shields.io/badge/Electron-38-47848f)
 ![React](https://img.shields.io/badge/React-19-61dafb)
-![Version](https://img.shields.io/badge/version-0.4.8-green)
+![Version](https://img.shields.io/badge/version-0.4.9-green)
 
 `pi-desktop` **不是** pi 的分支。它是一个轻量 Electron 外壳，通过启动多个 `pi --mode rpc` 进程，将项目管理、会话管理、对话界面、配置管理和工具编排整合到一个原生桌面应用中——所有 Agent 能力由 pi 原生提供。
 
@@ -16,12 +16,12 @@
 
 ## 📋 更新日志
 
-> **最新版本 v0.4.8**（2026-06-07）
+> **最新版本 v0.4.9**（2026-06-08）
 
-### v0.4.8 新增
-- 🌐 代理设置：分别配置 pi agent 子进程代理和桌面端模型拉取/测试代理。
-- 🧭 设置页重构：基础设置、代理设置、开发设置分为独立页签，保存反馈更清晰。
-- 🧩 Provider headers：新增 Provider 时默认不写入 User-Agent，保留运行时默认行为。
+### v0.4.9 新增
+- 🗂️ 历史会话弹框：从项目右键菜单打开历史会话，并支持列表内重命名。
+- 🖱️ 终端右键复制：选中终端文本后右键即可复制，并显示“已复制”提示。
+- 🧩 Codex 导入修复：补齐 assistant usage 元数据，导入会话可继续对话。
 
 [查看完整更新日志 →](CHANGELOG.zh-CN.md)
 
@@ -35,8 +35,8 @@
 | **配置管理** | 可视化编辑器管理 pi 的 `models.json`、`auth.json`、`settings.json`，支持 Provider 重命名、模型拉取、连接测试和请求头/User-Agent 配置。 |
 | **代理设置** | 独立管理 pi agent 子进程代理和桌面端代理，模型拉取与连接测试可走桌面端代理。 |
 | **斜线命令 & `!` Shell** | 内置斜线命令建议（`/compact`、`/session` 等），支持 `!command` / `!!command` 在聊天输入框直接执行 Shell 命令。 |
-| **内嵌终端 Dock** | 当前 Agent 绑定独立终端 tab，支持 PowerShell/cmd/sh fallback、多 tab、主题切换、拖拽高度和关闭确认。 |
-| **会话管理** | 新建会话、恢复历史会话、内联重命名、导出 HTML、关闭 Agent——通过侧边栏或右键菜单即可完成。 |
+| **内嵌终端 Dock** | 当前 Agent 绑定独立终端 tab，支持 PowerShell/cmd/sh fallback、多 tab、主题切换、拖拽高度、右键复制选区和关闭确认。 |
+| **会话管理** | 新建会话、项目历史弹框、恢复历史会话、重命名、导出 HTML、关闭 Agent——通过侧边栏或右键菜单即可完成。 |
 | **Git 集成** | 实时显示当前分支，支持本地 + 远程分支选择器、分支数量徽章和分支切换。 |
 | **工具调用可视化** | 工具调用聚合卡片，摘要 + 可展开详情，运行中/完成/失败状态清晰标识。 |
 | **上下文感知输入** | `@` 文件引用建议、`!` Shell 执行、`/` 斜线命令——统一在同一个输入框中。 |

@@ -153,6 +153,8 @@ export class CodexSessionImporter {
 					role,
 					content,
 					timestamp: messageTimestamp,
+					// pi 的上下文统计会读取 assistant.usage.totalTokens；Codex 原始历史没有该字段，导入时用 0 值占位保证可继续对话。
+					...(role === "assistant" ? { usage: this.zeroUsage() } : {}),
 					...extra,
 				},
 			});
@@ -288,6 +290,17 @@ export class CodexSessionImporter {
 			title,
 			preview: titleState.preview || "Codex imported session",
 			messageCount,
+		};
+	}
+
+	private zeroUsage() {
+		return {
+			input: 0,
+			output: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			totalTokens: 0,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 		};
 	}
 

@@ -4,6 +4,19 @@
 
 All notable changes to pi-desktop are documented here.
 
+## v0.4.9 - 2026-06-08
+
+### Added
+- Project history modal: open historical sessions from the project context menu and rename sessions with an inline action.
+- Terminal selection copy: right-click selected terminal text to copy it, with a lightweight confirmation hint.
+
+### Fixed
+- Codex-imported sessions now include compatible assistant usage metadata, preventing `totalTokens` errors when continuing imported conversations.
+
+### Improved
+- Codex session import now starts with no sessions selected by default, avoiding accidental bulk overwrite/import.
+- Historical session rows now use a compact Codex-style list layout with lighter rename controls.
+
 ## v0.4.8 - 2026-06-07
 
 ### Added

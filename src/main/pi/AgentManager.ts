@@ -1,5 +1,6 @@
 import { app, type BrowserWindow, Notification } from "electron";
 import { randomUUID } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
 import type {
 	AgentRuntimeState,
 	AgentTab,
@@ -57,6 +58,54 @@ export class AgentManager {
 		return messages;
 	}
 
+	private async repairAssistantUsage(sessionPath: string) {
+		const raw = await readFile(sessionPath, "utf8").catch(() => "");
+		if (!raw) return;
+
+		let changed = false;
+		const lines = raw.split(/\r?\n/).map((line) => {
+			if (!line.trim()) return line;
+			try {
+				const entry = JSON.parse(line) as { message?: Record<string, any> };
+				if (entry.message?.role !== "assistant") return line;
+
+				const usage = entry.message.usage as Record<string, any> | undefined;
+				if (usage?.totalTokens != null && usage.cost?.total != null) return line;
+
+				// Codex 导入的旧会话缺少 assistant.usage；pi 的统计/压缩链路会直接读取 totalTokens，所以打开前补零值兼容。
+				entry.message.usage = this.normalizeUsage(usage);
+				changed = true;
+				return JSON.stringify(entry);
+			} catch {
+				return line;
+			}
+		});
+
+		if (changed) await writeFile(sessionPath, lines.join("\n"), "utf8");
+	}
+
+	private normalizeUsage(usage: Record<string, any> | undefined) {
+		return {
+			input: usage?.input ?? 0,
+			output: usage?.output ?? 0,
+			cacheRead: usage?.cacheRead ?? 0,
+			cacheWrite: usage?.cacheWrite ?? 0,
+			totalTokens:
+				usage?.totalTokens ??
+				(usage?.input ?? 0) +
+					(usage?.output ?? 0) +
+					(usage?.cacheRead ?? 0) +
+					(usage?.cacheWrite ?? 0),
+			cost: {
+				input: usage?.cost?.input ?? 0,
+				output: usage?.cost?.output ?? 0,
+				cacheRead: usage?.cost?.cacheRead ?? 0,
+				cacheWrite: usage?.cost?.cacheWrite ?? 0,
+				total: usage?.cost?.total ?? 0,
+			},
+		};
+	}
+
 	async create(input: CreateAgentInput) {
 		const project = this.getProject(input.projectId);
 		if (!project) throw new Error(`Project not found: ${input.projectId}`);
@@ -77,6 +126,8 @@ export class AgentManager {
 			status: "starting",
 			createdAt: Date.now(),
 		};
+
+		if (input.sessionPath) await this.repairAssistantUsage(input.sessionPath);
 
 		// 代理环境变量只能在子进程启动前注入；设置变更后通过 restart/new agent 创建新的进程快照。
 		const process = new PiProcess(project.path, this.settingsStore.get());
