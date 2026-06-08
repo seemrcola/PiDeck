@@ -56,14 +56,17 @@ jobs:
           - platform: windows
             os: windows-latest
             command: npm run build && npx electron-builder --win nsis portable zip --publish never
+            electron_mirror: https://npmmirror.com/mirrors/electron/
             electron_builder_binaries_mirror: https://npmmirror.com/mirrors/electron-builder-binaries/
           - platform: macos
             os: macos-latest
             command: npm run build && npx electron-builder --mac dmg zip --publish never
+            electron_mirror: ""
             electron_builder_binaries_mirror: ""
           - platform: linux
             os: ubuntu-latest
             command: npm run build && npx electron-builder --linux AppImage deb tar.gz --publish never
+            electron_mirror: https://npmmirror.com/mirrors/electron/
             electron_builder_binaries_mirror: https://npmmirror.com/mirrors/electron-builder-binaries/
 
     runs-on: ${{ matrix.os }}
@@ -91,8 +94,8 @@ jobs:
           # GitHub Releases occasionally returns 504 for Electron/electron-builder binaries;
           # use a stable mirror for CI downloads while keeping publishing on GitHub Releases.
           # macOS DMG packaging needs dmgbuild bundles that can be missing from npmmirror,
-          # so the matrix intentionally leaves the builder binaries mirror empty for macOS.
-          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          # so the matrix intentionally leaves Electron/builder mirrors empty for macOS.
+          ELECTRON_MIRROR: ${{ matrix.electron_mirror }}
           ELECTRON_BUILDER_BINARIES_MIRROR: ${{ matrix.electron_builder_binaries_mirror }}
 
       - name: Upload release assets
