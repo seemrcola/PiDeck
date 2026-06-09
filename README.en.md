@@ -1,6 +1,6 @@
 # pi-desktop
 
-[中文文档](README.zh-CN.md) · [English](README.en.md) · [LinuxDO 友链](https://linux.do)
+[中文文档](README.md) · [English](README.en.md) · [LinuxDO 友链](https://linux.do)
 
 **A desktop workbench for managing multiple [pi](https://pi.dev) coding-agent sessions across project folders.**
 
