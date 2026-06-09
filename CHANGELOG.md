@@ -4,6 +4,11 @@
 
 All notable changes to pi-desktop are documented here.
 
+## v0.4.14 - 2026-06-09
+
+### Improved
+- Release package size: build-time and renderer-only libraries are no longer listed as production dependencies, reducing the packaged app payload and download size across Windows, macOS, and Linux releases.
+
 ## v0.4.13 - 2026-06-09
 
 ### Fixed
