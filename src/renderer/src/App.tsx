@@ -135,6 +135,19 @@ function isPendingAgentId(agentId?: string) {
 	return Boolean(agentId?.startsWith("pending-"));
 }
 
+function migrateAgentRecord<T>(
+	current: Record<string, T>,
+	replacementById: Map<string, string>,
+	liveIds: Set<string>,
+) {
+	const next: Record<string, T> = {};
+	for (const [agentId, value] of Object.entries(current)) {
+		const nextAgentId = replacementById.get(agentId) ?? agentId;
+		if (liveIds.has(nextAgentId)) next[nextAgentId] = value;
+	}
+	return next;
+}
+
 export function App() {
 	const [projects, setProjects] = useState<Project[]>([]);
 	const [draggingProjectId, setDraggingProjectId] = useState<string>();
@@ -167,14 +180,16 @@ export function App() {
 	const [thinkingPickerOpen, setThinkingPickerOpen] = useState(false);
 	const [sendBehaviorMenuOpen, setSendBehaviorMenuOpen] = useState(false);
 	const [switchingBranch, setSwitchingBranch] = useState<string | null>(null);
-	const [prompt, setPrompt] = useState("");
+	const [promptByAgent, setPromptByAgent] = useState<Record<string, string>>({});
 	/** 当前进行的操作类型，用于按钮 loading 状态 */
 	const [loadingAction, setLoadingAction] = useState<null | "restart">(null);
 	/** 键盘上下键切换的历史消息列表 */
 	const [messageHistory, setMessageHistory] = useState<string[]>([]);
 	/** 当前在历史中的索引，-1 表示新输入；用 ref 确保键盘事件回调中读取到最新的值 */
 	const historyIndexRef = useRef(-1);
-	const [attachedImages, setAttachedImages] = useState<ImageContent[]>([]);
+	const [attachedImagesByAgent, setAttachedImagesByAgent] = useState<
+		Record<string, ImageContent[]>
+	>({});
 	const [previewImage, setPreviewImage] = useState<ImageContent | null>(null);
 	/** 当前 agent 流式思考的实时文本，agent_end 时清空 */
 	const [streamingThinking, setStreamingThinking] = useState<
@@ -332,6 +347,48 @@ export function App() {
 		];
 	}, [agents, pendingAgents]);
 	const activeAgent = displayAgents.find((agent) => agent.id === activeAgentId);
+	const prompt = activeAgentId ? (promptByAgent[activeAgentId] ?? "") : "";
+	const attachedImages = activeAgentId
+		? (attachedImagesByAgent[activeAgentId] ?? [])
+		: [];
+
+	function setPrompt(value: string | ((current: string) => string)) {
+		if (!activeAgentId) return;
+		setPromptByAgent((current) => {
+			const previous = current[activeAgentId] ?? "";
+			const nextValue =
+				typeof value === "function" ? value(previous) : value;
+			if (!nextValue) {
+				const next = { ...current };
+				delete next[activeAgentId];
+				return next;
+			}
+			return {
+				...current,
+				[activeAgentId]: nextValue,
+			};
+		});
+	}
+
+	function setAttachedImages(
+		value: ImageContent[] | ((current: ImageContent[]) => ImageContent[]),
+	) {
+		if (!activeAgentId) return;
+		setAttachedImagesByAgent((current) => {
+			const previous = current[activeAgentId] ?? [];
+			const nextValue =
+				typeof value === "function" ? value(previous) : value;
+			if (nextValue.length === 0) {
+				const next = { ...current };
+				delete next[activeAgentId];
+				return next;
+			}
+			return {
+				...current,
+				[activeAgentId]: nextValue,
+			};
+		});
+	}
 	// 终端展开状态按 agent 隔离，避免切换项目/agent 时把别人的终端 UI 一并带过去。
 	const terminalOpen = activeAgentId
 		? Boolean(terminalOpenByAgent[activeAgentId])
@@ -469,6 +526,16 @@ export function App() {
 						isReplacementForPendingAgent(agent, pending),
 					),
 			);
+			const pendingReplacementById = new Map(
+				previousPendingAgents
+					.map((pending) => {
+						const replacement = nextAgents.find((agent) =>
+							isReplacementForPendingAgent(agent, pending),
+						);
+						return replacement ? [pending.id, replacement.id] : undefined;
+					})
+					.filter((entry): entry is [string, string] => Boolean(entry)),
+			);
 			if (remainingPendingAgents.length !== previousPendingAgents.length) {
 				pendingAgentsRef.current = remainingPendingAgents;
 				setPendingAgents(remainingPendingAgents);
@@ -489,6 +556,10 @@ export function App() {
 				return pendingAgent ? current : undefined;
 			});
 			const activeIds = new Set(nextAgents.map((agent) => agent.id));
+			const draftIds = new Set([
+				...nextAgents.map((agent) => agent.id),
+				...remainingPendingAgents.map((agent) => agent.id),
+			]);
 			setTerminalOpenByAgent((current) =>
 				Object.fromEntries(
 					Object.entries(current).filter(([agentId]) => activeIds.has(agentId)),
@@ -503,6 +574,12 @@ export function App() {
 				Object.fromEntries(
 					Object.entries(current).filter(([agentId]) => activeIds.has(agentId)),
 				),
+			);
+			setPromptByAgent((current) =>
+				migrateAgentRecord(current, pendingReplacementById, draftIds),
+			);
+			setAttachedImagesByAgent((current) =>
+				migrateAgentRecord(current, pendingReplacementById, draftIds),
 			);
 		});
 		const offMessages = api.agents.onMessages((payload) =>
@@ -1213,11 +1290,31 @@ export function App() {
 				(agent) => agent.id !== pendingTab.id,
 			);
 			setPendingAgents(pendingAgentsRef.current);
-			setActiveAgentId(tab.id);
-			setActiveAgentByProject((current) => ({
-				...current,
-				[projectId]: tab.id,
-			}));
+			setActiveAgentId((current) =>
+				current === pendingTab.id ? tab.id : current,
+			);
+			setActiveAgentByProject((current) =>
+				current[projectId] === pendingTab.id
+					? {
+							...current,
+							[projectId]: tab.id,
+						}
+					: current,
+			);
+			setPromptByAgent((current) => {
+				const draft = current[pendingTab.id];
+				if (draft == null) return current;
+				const next = { ...current, [tab.id]: draft };
+				delete next[pendingTab.id];
+				return next;
+			});
+			setAttachedImagesByAgent((current) => {
+				const draft = current[pendingTab.id];
+				if (draft == null) return current;
+				const next = { ...current, [tab.id]: draft };
+				delete next[pendingTab.id];
+				return next;
+			});
 			void refreshRuntimeState(tab.id);
 		} catch (e) {
 			pendingAgentsRef.current = pendingAgentsRef.current.filter(
@@ -1228,6 +1325,7 @@ export function App() {
 				current === pendingTab.id ? previousAgentId : current,
 			);
 			setActiveAgentByProject((current) => {
+				if (current[projectId] !== pendingTab.id) return current;
 				const next = { ...current };
 				if (previousAgentId) next[projectId] = previousAgentId;
 				else delete next[projectId];
