@@ -517,7 +517,7 @@ export function BranchSelector(props: {
 
 export function LogoMark() {
 	return (
-		<div className="logo-mark" aria-label="PiDeck logo">
+		<div className="logo-mark" aria-label={t("app.logoLabel")}>
 			<svg viewBox="140 140 520 520" width="22" height="22" aria-hidden="true">
 				<path
 					fill="#fff"
