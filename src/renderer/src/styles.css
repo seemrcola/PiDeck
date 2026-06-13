@@ -258,7 +258,7 @@ select:focus-visible {
 	flex-direction: row;
 	align-items: flex-start;
 	gap: 14px;
-	border-color: rgba(35, 134, 54, 0.24);
+	border-color: color-mix(in srgb, var(--color-accent) 24%, var(--color-border-subtle));
 	background: var(--color-accent-soft);
 }
 .env-success-icon {
@@ -296,7 +296,7 @@ select:focus-visible {
 
 /* ── 错误详情卡片 ──────────────────────────────── */
 .env-error-card {
-	border-color: rgba(180, 35, 24, 0.24);
+	border-color: color-mix(in srgb, var(--color-danger) 24%, var(--color-border-subtle));
 	background: var(--color-danger-soft);
 }
 .env-error-card strong {
@@ -307,7 +307,7 @@ select:focus-visible {
 	padding: 10px 12px;
 	border-radius: var(--radius-sm);
 	background: var(--color-bg-panel);
-	border: 1px solid rgba(180, 35, 24, 0.24);
+	border: 1px solid color-mix(in srgb, var(--color-danger) 24%, var(--color-border-subtle));
 	color: var(--color-danger);
 	font-size: var(--font-size-caption);
 	font-family: "Cascadia Code", Consolas, monospace;
@@ -403,7 +403,7 @@ select:focus-visible {
 }
 .custom-path-input-row input:focus {
 	border-color: var(--color-accent);
-	box-shadow: 0 0 0 2px rgba(35, 134, 54, 0.14);
+	box-shadow: var(--focus-ring);
 }
 
 /* ── 校验结果提示 ──────────────────────────────── */
