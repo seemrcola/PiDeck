@@ -1,6 +1,6 @@
 import { defineConfig } from "vitepress";
 
-const base = process.env.VITEPRESS_BASE ?? "/pi-desktop/";
+const base = process.env.VITEPRESS_BASE ?? "/PiDeck/";
 
 export default defineConfig({
   title: "PiDeck",
@@ -25,7 +25,7 @@ export default defineConfig({
       { text: "更新日志", link: "/changelog" },
       {
         text: "下载",
-        link: "https://github.com/ayuayue/pi-desktop/releases",
+        link: "https://github.com/ayuayue/PiDeck/releases",
       },
     ],
     sidebar: {
@@ -42,7 +42,7 @@ export default defineConfig({
       ],
     },
     socialLinks: [
-      { icon: "github", link: "https://github.com/ayuayue/pi-desktop" },
+      { icon: "github", link: "https://github.com/ayuayue/PiDeck" },
     ],
     search: {
       provider: "local",
@@ -63,7 +63,7 @@ export default defineConfig({
       },
     },
     editLink: {
-      pattern: "https://github.com/ayuayue/pi-desktop/edit/main/docs-site/:path",
+      pattern: "https://github.com/ayuayue/PiDeck/edit/main/docs-site/:path",
       text: "在 GitHub 上编辑此页",
     },
     footer: {

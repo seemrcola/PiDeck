@@ -8,13 +8,13 @@
     "name": "ayuayue",
     "email": "ayuayue@users.noreply.github.com"
   },
-  "homepage": "https://github.com/ayuayue/pi-desktop#readme",
+  "homepage": "https://github.com/ayuayue/PiDeck#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ayuayue/pi-desktop.git"
+    "url": "git+https://github.com/ayuayue/PiDeck.git"
   },
   "bugs": {
-    "url": "https://github.com/ayuayue/pi-desktop/issues"
+    "url": "https://github.com/ayuayue/PiDeck/issues"
   },
   "keywords": [
     "pi",
