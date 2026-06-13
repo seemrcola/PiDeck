@@ -6,6 +6,7 @@ import { RawTab } from "./config/RawTab";
 import { SettingsTab } from "./config/SettingsTab";
 import { SkillsTab } from "./config/SkillsTab";
 import { ExtensionsTab } from "./config/ExtensionsTab";
+import { CloseIconButton } from "./components/ui/IconButton";
 import { t } from "./i18n";
 import type {
 	AuthFile,
@@ -125,7 +126,10 @@ class ConfigModalErrorBoundary extends Component<
 				<div className="config-modal">
 					<div className="modal-header">
 						<strong>{t("config.loadFailed")}</strong>
-						<button className="modal-close-btn" onClick={this.props.onClose}>×</button>
+						<CloseIconButton
+							label={t("common.close")}
+							onClick={this.props.onClose}
+						/>
 					</div>
 					<div className="config-content">
 						<div className="config-diagnostic-card">
@@ -712,7 +716,7 @@ function ConfigModalContent(props: ConfigModalProps) {
 								</button>
 							</>
 						)}
-						<button className="modal-close-btn" onClick={onClose}>×</button>
+						<CloseIconButton label={t("common.close")} onClick={onClose} />
 					</div>
 				</div>
 

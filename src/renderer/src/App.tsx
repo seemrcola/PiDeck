@@ -28,6 +28,7 @@ import { createPreviewApi } from "./previewApi";
 import { createBrowserApi } from "./browserApi";
 import { ConfigModal } from "./ConfigModal";
 import { TerminalDock } from "./components/terminal/TerminalDock";
+import { CloseIconButton } from "./components/ui/IconButton";
 import { getComposerEnterIntent } from "./composerBehavior";
 import { getVisibleAgentsForProject } from "./agentListDisplay";
 import { resolveLocale, setI18nLocale, t } from "./i18n";
@@ -3608,9 +3609,7 @@ function FeedbackModal({
               <strong className="feedback-email">chat@caoayu.eu.org</strong>
             </small>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
-            ×
-          </button>
+          <CloseIconButton label={t("common.close")} onClick={onClose} />
         </div>
         <div className="feedback-body">
           <label>

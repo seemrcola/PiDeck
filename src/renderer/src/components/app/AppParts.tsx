@@ -27,6 +27,7 @@ import {
 	X,
 } from "lucide-react";
 import { t, type TranslationKey } from "../../i18n";
+import { CloseIconButton } from "../ui/IconButton";
 import { SelectField } from "../ui/SelectField";
 import type {
 	AgentRuntimeState,
@@ -89,7 +90,10 @@ export function EnvironmentDialog(props: {
 			<section className="environment-modal">
 				<div className="modal-header">
 					<strong>{t("environment.title")}</strong>
-					<button onClick={props.onClose}>×</button>
+					<CloseIconButton
+						label={t("common.close")}
+						onClick={props.onClose}
+					/>
 				</div>
 
 				<div className="environment-body">
@@ -1228,7 +1232,10 @@ export function RpcLogModal(props: {
 						<button className="config-btn blue" onClick={() => copyLogs(visibleLogs)}>
 							{t("common.copyVisible")}
 						</button>
-						<button className="modal-close-btn" onClick={props.onClose}>×</button>
+						<CloseIconButton
+							label={t("common.close")}
+							onClick={props.onClose}
+						/>
 					</div>
 				</div>
 				<div className="rpc-log-toolbar">
@@ -2430,7 +2437,10 @@ export function SettingsModal(props: {
 			>
 				<div className="modal-header">
 					<strong>{t("settings.title")}</strong>
-					<button onClick={props.onClose}>×</button>
+					<CloseIconButton
+						label={t("common.close")}
+						onClick={props.onClose}
+					/>
 				</div>
 				<div className="settings-layout">
 					<nav className="settings-tabs" aria-label={t("settings.title")}>
@@ -2855,7 +2865,10 @@ export function CodexImportModal(props: {
 						<strong>{t("codex.title")}</strong>
 						<small>{props.project.name}</small>
 					</div>
-					<button onClick={props.onClose}>×</button>
+					<CloseIconButton
+						label={t("common.close")}
+						onClick={props.onClose}
+					/>
 				</div>
 				<div className="codex-import-toolbar">
 					<div>

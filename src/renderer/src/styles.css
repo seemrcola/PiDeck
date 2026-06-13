@@ -807,6 +807,9 @@ select:focus-visible {
 	background: var(--color-bg-hover);
 	color: var(--color-accent);
 }
+.ui-icon-button svg {
+	display: block;
+}
 .search-row {
 	height: 52px;
 	display: grid;
