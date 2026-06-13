@@ -10,6 +10,7 @@ import type {
 	TerminalExitEvent,
 	TerminalTab,
 } from "../../shared/types";
+import { t } from "./i18n";
 
 const now = Date.now();
 
@@ -32,42 +33,48 @@ const projects: Project[] = [
 	},
 ];
 
-const agents: AgentTab[] = [
-	{
-		id: "preview-agent",
-		projectId: "builtin-chat",
-		cwd: projects[0].path,
-		title: "预览会话",
-		status: "idle",
-		sessionId: "preview",
-		createdAt: now,
-	},
-];
+let previewAgentTitle: string | null = null;
 
-const messages: ChatMessage[] = [
-	{
-		id: "m1",
-		agentId: "preview-agent",
-		role: "user",
-		text: "帮我总结一下这个项目",
-		timestamp: now - 120000,
-	},
-	{
-		id: "m2",
-		agentId: "preview-agent",
-		role: "assistant",
-		text: "## 项目概览\n\n这是浏览器预览模式，用来检查 UI 响应式布局。\n\n- 支持 Markdown\n- 支持消息定位\n- 支持工具详情展开",
-		timestamp: now - 90000,
-	},
-	{
-		id: "m3",
-		agentId: "preview-agent",
-		role: "tool",
-		text: "✓ read done",
-		timestamp: now - 60000,
-		meta: { detailText: "工具：read\n状态：完成\n结果：预览模式工具调用详情" },
-	},
-];
+function getAgents(): AgentTab[] {
+	return [
+		{
+			id: "preview-agent",
+			projectId: "builtin-chat",
+			cwd: projects[0].path,
+			title: previewAgentTitle ?? t("preview.agentTitle"),
+			status: "idle",
+			sessionId: "preview",
+			createdAt: now,
+		},
+	];
+}
+
+function getMessages(): ChatMessage[] {
+	return [
+		{
+			id: "m1",
+			agentId: "preview-agent",
+			role: "user",
+			text: t("preview.userPrompt"),
+			timestamp: now - 120000,
+		},
+		{
+			id: "m2",
+			agentId: "preview-agent",
+			role: "assistant",
+			text: t("preview.assistantText"),
+			timestamp: now - 90000,
+		},
+		{
+			id: "m3",
+			agentId: "preview-agent",
+			role: "tool",
+			text: "✓ read done",
+			timestamp: now - 60000,
+			meta: { detailText: t("preview.toolDetail") },
+		},
+	];
+}
 
 const files: FileTreeNode[] = [
 	{
@@ -92,21 +99,47 @@ const files: FileTreeNode[] = [
 	},
 ];
 
-const sessions: SessionSummary[] = [
-	{
-		id: "s1",
-		filePath: "preview.jsonl",
-		projectPath: projects[0].path,
-		name: "预览历史会话",
-		preview: "这里展示历史会话摘要",
-		updatedAt: now,
-		messageCount: 3,
-	},
-];
+function getSessions(): SessionSummary[] {
+	return [
+		{
+			id: "s1",
+			filePath: "preview.jsonl",
+			projectPath: projects[0].path,
+			name: t("preview.sessionName"),
+			preview: t("preview.sessionPreview"),
+			updatedAt: now,
+			messageCount: 3,
+		},
+	];
+}
 
 const terminalTabs: TerminalTab[] = [];
 const terminalDataListeners = new Set<(payload: TerminalDataEvent) => void>();
 const terminalExitListeners = new Set<(payload: TerminalExitEvent) => void>();
+
+let previewSettings: AppSettings = {
+	useNativeTitleBar: true,
+	showNativeMenu: false,
+	sendShortcut: "enter-send",
+	theme: "system",
+	language: "system",
+	piEnvironmentChecked: true,
+	closeToTray: true,
+	enableNotifications: true,
+	showThinking: true,
+	showDevTools: false,
+	piProxyEnabled: false,
+	piProxyUrl: "http://127.0.0.1:7890",
+	piProxyBypass: "localhost,127.0.0.1,::1",
+	desktopProxyEnabled: false,
+	desktopProxyUrl: "http://127.0.0.1:7890",
+	desktopProxyBypass: "localhost,127.0.0.1,::1",
+	customPiPath: "",
+	telemetryEnabled: true,
+	webServiceEnabled: false,
+	webServiceHost: "0.0.0.0",
+	webServicePort: 8765,
+};
 
 export function createPreviewApi(): PiDesktopApi {
 	const noop = (() => () => undefined) as any;
@@ -147,7 +180,7 @@ export function createPreviewApi(): PiDesktopApi {
 			showInFolder: async () => undefined,
 		},
 		sessions: {
-			list: async () => sessions,
+			list: async () => getSessions(),
 			rename: async () => undefined,
 			copy: async (_projectId, filePath) => ({
 				cancelled: false,
@@ -268,59 +301,17 @@ export function createPreviewApi(): PiDesktopApi {
 			uninstall: async () => undefined,
 		},
 		settings: {
-			get: async (): Promise<AppSettings> => ({
-				useNativeTitleBar: true,
-				showNativeMenu: false,
-				sendShortcut: "enter-send",
-				theme: "system",
-				language: "system",
-				piEnvironmentChecked: true,
-				closeToTray: true,
-				enableNotifications: true,
-				showThinking: true,
-				showDevTools: false,
-				piProxyEnabled: false,
-				piProxyUrl: "http://127.0.0.1:7890",
-				piProxyBypass: "localhost,127.0.0.1,::1",
-				desktopProxyEnabled: false,
-				desktopProxyUrl: "http://127.0.0.1:7890",
-				desktopProxyBypass: "localhost,127.0.0.1,::1",
-				customPiPath: "",
-				telemetryEnabled: true,
-				webServiceEnabled: false,
-				webServiceHost: "0.0.0.0",
-				webServicePort: 8765,
-			}),
-			update: async (patch): Promise<AppSettings> => ({
-				useNativeTitleBar: true,
-				showNativeMenu: false,
-				sendShortcut: "enter-send",
-				theme: "system",
-				language: "system",
-				piEnvironmentChecked: true,
-				closeToTray: true,
-				enableNotifications: true,
-				showThinking: true,
-				showDevTools: false,
-				piProxyEnabled: false,
-				piProxyUrl: "http://127.0.0.1:7890",
-				piProxyBypass: "localhost,127.0.0.1,::1",
-				desktopProxyEnabled: false,
-				desktopProxyUrl: "http://127.0.0.1:7890",
-				desktopProxyBypass: "localhost,127.0.0.1,::1",
-				customPiPath: "",
-				webServiceEnabled: false,
-				webServiceHost: "0.0.0.0",
-				webServicePort: 8765,
-				...patch,
-				telemetryEnabled: patch.telemetryEnabled ?? true,
-			}),
+			get: async (): Promise<AppSettings> => ({ ...previewSettings }),
+			update: async (patch): Promise<AppSettings> => {
+				previewSettings = { ...previewSettings, ...patch };
+				return { ...previewSettings };
+			},
 			testPiProxy: async () => ({
 				success: true,
 				url: "https://api.openai.com/v1/models",
 				elapsedMs: 120,
 				statusCode: 401,
-				message: "代理可用，目标返回 HTTP 401",
+				message: t("preview.proxyOk"),
 			}),
 			onApplyWindow: noop,
 		},
@@ -360,11 +351,13 @@ export function createPreviewApi(): PiDesktopApi {
 			}),
 		},
 		agents: {
-			list: async () => agents,
-			create: async () => agents[0],
+			list: async () => getAgents(),
+			create: async () => getAgents()[0],
 			rename: async (agentId, name) => {
-				const agent = agents.find((item) => item.id === agentId) ?? agents[0];
-				agent.title = name;
+				const agent =
+					getAgents().find((item) => item.id === agentId) ?? getAgents()[0];
+				previewAgentTitle = name;
+				agent.title = previewAgentTitle;
 				return agent;
 			},
 			stop: async () => undefined,
@@ -382,7 +375,7 @@ export function createPreviewApi(): PiDesktopApi {
 				id: agentId,
 				projectId: "preview",
 				cwd: "/preview",
-				title: "Preview Agent",
+				title: previewAgentTitle ?? t("preview.agentTitle"),
 				status: "idle" as const,
 				createdAt: Date.now(),
 			}),
@@ -435,7 +428,7 @@ export function createPreviewApi(): PiDesktopApi {
 					messages: ChatMessage[];
 				}) => void,
 			) => {
-				setTimeout(() => callback({ agentId: "preview-agent", messages }), 0);
+				setTimeout(() => callback({ agentId: "preview-agent", messages: getMessages() }), 0);
 				return () => undefined;
 			}) as any,
 			onLog: noop,
