@@ -378,15 +378,15 @@ export function ModelPicker(props: {
 }
 
 const THINKING_LEVELS = [
-	{ value: "off", label: "Off", descriptionKey: "thinking.level.off" },
+	{ value: "off", labelKey: "thinking.levelLabel.off", descriptionKey: "thinking.level.off" },
 	// minimal 是 pi/Codex reasoning 的最轻量档位,放在 Off 与 Low 之间便于按强度递增选择。
-	{ value: "minimal", label: "Minimal", descriptionKey: "thinking.level.minimal" },
-	{ value: "low", label: "Low", descriptionKey: "thinking.level.low" },
-	{ value: "medium", label: "Medium", descriptionKey: "thinking.level.medium" },
-	{ value: "high", label: "High", descriptionKey: "thinking.level.high" },
+	{ value: "minimal", labelKey: "thinking.levelLabel.minimal", descriptionKey: "thinking.level.minimal" },
+	{ value: "low", labelKey: "thinking.levelLabel.low", descriptionKey: "thinking.level.low" },
+	{ value: "medium", labelKey: "thinking.levelLabel.medium", descriptionKey: "thinking.level.medium" },
+	{ value: "high", labelKey: "thinking.levelLabel.high", descriptionKey: "thinking.level.high" },
 	// xhigh 只在部分模型上可用;选择后以前端收到的 runtime state 为准,必要时提示用户已被回退。
-	{ value: "xhigh", label: "XHigh", descriptionKey: "thinking.level.xhigh" },
-] satisfies Array<{ value: string; label: string; descriptionKey: TranslationKey }>;
+	{ value: "xhigh", labelKey: "thinking.levelLabel.xhigh", descriptionKey: "thinking.level.xhigh" },
+] satisfies Array<{ value: string; labelKey: TranslationKey; descriptionKey: TranslationKey }>;
 
 export function ThinkingPicker(props: {
 	current?: string;
@@ -412,7 +412,7 @@ export function ThinkingPicker(props: {
 								className={`picker-palette-item${selected ? " selected" : ""}`}
 								onClick={() => props.onPick(level.value)}
 							>
-								<span className="picker-palette-label">{level.label}</span>
+								<span className="picker-palette-label">{t(level.labelKey)}</span>
 								<span className="picker-palette-desc">{t(level.descriptionKey)}</span>
 								{selected && <span className="picker-palette-check">✓</span>}
 							</button>
