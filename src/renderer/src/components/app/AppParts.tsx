@@ -16,6 +16,7 @@ import {
 	Brain,
 	Folder,
 	Globe2,
+	MessageCircle,
 	Network,
 	Pencil,
 	Pin,
@@ -530,10 +531,17 @@ export function LogoMark() {
 	);
 }
 
-export function ProjectAvatar(props: { name: string }) {
+export function ProjectAvatar(props: { name: string; kind?: "chat" | "project" }) {
 	return (
-		<div className="conversation-avatar project-avatar" title={t("app.projectAvatarTitle", { name: props.name })}>
-			<Folder size={16} strokeWidth={1.8} />
+		<div
+			className={`conversation-avatar project-avatar${props.kind === "chat" ? " chat-avatar" : ""}`}
+			title={t("app.projectAvatarTitle", { name: props.name })}
+		>
+			{props.kind === "chat" ? (
+				<MessageCircle size={16} strokeWidth={1.9} />
+			) : (
+				<Folder size={16} strokeWidth={1.8} />
+			)}
 		</div>
 	);
 }

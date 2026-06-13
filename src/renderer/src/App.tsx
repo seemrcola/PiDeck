@@ -2569,7 +2569,10 @@ export function App() {
                   >
                     <Play size={12} />
                   </span>
-                  <ProjectAvatar name={projectDirectoryName} />
+                  <ProjectAvatar
+                    name={projectDirectoryName}
+                    kind={projectIsChat ? "chat" : "project"}
+                  />
                   <div className="conversation-body">
                     <div className="conversation-title">
                       <strong title={project.path}>
@@ -2725,26 +2728,38 @@ export function App() {
         </div>
         {!isLanWeb && (
           <div className="toolbar-actions sidebar-bottom-actions">
+            <div className="sidebar-bottom-primary-actions">
+              <button
+                className="icon-button feedback-icon"
+                title={t("feedback.title")}
+                onClick={() => setFeedbackOpen(true)}
+              >
+                <Info size={17} />
+              </button>
+              <button
+                className="icon-button config-icon"
+                title={t("config.title")}
+                onClick={() => setConfigOpen(true)}
+              >
+                <Sliders size={17} />
+              </button>
+              <button
+                className="icon-button settings-icon"
+                title={t("settings.title")}
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings size={17} />
+              </button>
+            </div>
             <button
-              className="icon-button feedback-icon"
-              title={t("feedback.title")}
-              onClick={() => setFeedbackOpen(true)}
+              className="icon-button sidebar-collapse-logo"
+              title={listCollapsed ? t("app.expandList") : t("app.collapseList")}
+              onClick={() => {
+                if (listCollapsed) setListWidth(DEFAULT_LIST_WIDTH);
+                setListCollapsed((value) => !value);
+              }}
             >
-              <Info size={17} />
-            </button>
-            <button
-              className="icon-button config-icon"
-              title={t("config.title")}
-              onClick={() => setConfigOpen(true)}
-            >
-              <Sliders size={17} />
-            </button>
-            <button
-              className="icon-button settings-icon"
-              title={t("settings.title")}
-              onClick={() => setSettingsOpen(true)}
-            >
-              <Settings size={17} />
+              <LogoMark />
             </button>
           </div>
         )}
