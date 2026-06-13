@@ -2384,12 +2384,12 @@ export function App() {
     >
       {!settings.useNativeTitleBar && <div className="window-drag-layer" aria-hidden="true" />}
       {!settings.useNativeTitleBar && (
-        <div className="window-controls" aria-label="PiDeck window controls">
+        <div className="window-controls" aria-label={t("app.windowControls")}>
           <button
             type="button"
             className={`window-control pin${windowAlwaysOnTop ? " active" : ""}`}
-            aria-label={windowAlwaysOnTop ? "Unpin window from top" : "Keep window on top"}
-            title={windowAlwaysOnTop ? "取消置顶" : "窗口置顶"}
+            aria-label={windowAlwaysOnTop ? t("app.windowUnpin") : t("app.windowPin")}
+            title={windowAlwaysOnTop ? t("app.windowUnpin") : t("app.windowPin")}
             onClick={async () => {
               const next = await api.app.toggleAlwaysOnTopWindow();
               setWindowAlwaysOnTop(next);
@@ -2400,7 +2400,8 @@ export function App() {
           <button
             type="button"
             className="window-control"
-            aria-label="Minimize window"
+            aria-label={t("app.windowMinimize")}
+            title={t("app.windowMinimize")}
             onClick={() => api.app.minimizeWindow()}
           >
             <Minus size={15} strokeWidth={2.2} aria-hidden="true" />
@@ -2408,7 +2409,8 @@ export function App() {
           <button
             type="button"
             className="window-control"
-            aria-label="Maximize or restore window"
+            aria-label={t("app.windowToggleMaximize")}
+            title={t("app.windowToggleMaximize")}
             onClick={() => api.app.toggleMaximizeWindow()}
           >
             <Square size={13} strokeWidth={2} aria-hidden="true" />
@@ -2416,7 +2418,8 @@ export function App() {
           <button
             type="button"
             className="window-control close"
-            aria-label="Close window"
+            aria-label={t("app.windowClose")}
+            title={t("app.windowClose")}
             onClick={() => api.app.closeWindow()}
           >
             <X size={16} strokeWidth={2.2} aria-hidden="true" />
