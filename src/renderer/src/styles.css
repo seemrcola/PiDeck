@@ -4489,8 +4489,8 @@ body.is-composer-resizing .composer-resize-handle::after {
 }
 .setting-field {
 	display: grid;
-	gap: 8px;
-	margin: 12px 0;
+	gap: var(--space-2);
+	margin: var(--space-3) 0;
 }
 .setting-field > span,
 .setting-field .ui-field-label {
@@ -4498,16 +4498,16 @@ body.is-composer-resizing .composer-resize-handle::after {
 	font-size: var(--font-size-control);
 }
 .setting-field input {
-	height: 36px;
+	height: var(--control-height-lg);
 	border: 1px solid var(--color-border-subtle);
 	border-radius: var(--radius-sm);
 	background: var(--color-bg-panel);
-	padding: 0 10px;
+	padding: 0 var(--space-3);
 	color: var(--color-text-primary);
 }
 .ui-select-control {
 	position: relative;
-	height: 36px;
+	height: var(--control-height-lg);
 	display: flex;
 	align-items: center;
 	border: 1px solid var(--color-border-subtle);
@@ -4528,13 +4528,13 @@ body.is-composer-resizing .composer-resize-handle::after {
 	outline: 0;
 	background: transparent;
 	color: inherit;
-	padding: 0 34px 0 10px;
+	padding: 0 calc(var(--space-6) + var(--space-3)) 0 var(--space-3);
 	font: inherit;
 	cursor: pointer;
 }
 .ui-select-control svg {
 	position: absolute;
-	right: 10px;
+	right: var(--space-3);
 	pointer-events: none;
 	color: var(--color-text-tertiary);
 }
