@@ -987,11 +987,6 @@ export const AgentRun = memo(function AgentRun(props: {
 				<div className="msg-name">
 					<span>pi</span>
 					<time>{formatTime(props.run.endedAt)}</time>
-					{isComplete && props.run.startedAt > 0 && (
-						<span className="agent-run-duration">
-							⏱ {formatDuration(props.run.endedAt - props.run.startedAt)}
-						</span>
-					)}
 				</div>
 				{isCollapsed && toolGroupCount > 0 && (
 					<button
