@@ -67,7 +67,7 @@ export function AuthTab(props: {
 		<div className="config-auth-tab">
 			<div className="config-toolbar">
 				<span className="config-count">
-					{t("config.count.providers", { count: providers.length })}
+					{t("config.count.auth", { count: providers.length })}
 				</span>
 				<div className="config-toolbar-actions">
 					<button

@@ -306,6 +306,7 @@ const zhCN = {
   "config.extensionUninstalledToast": "扩展已卸载，重启 agent 后生效",
   "config.count.configItems": "{count} 个配置项",
   "config.count.extensions": "{count} 个扩展",
+  "config.count.auth": "{count} 个认证",
   "config.count.models": "{count} 模型",
   "config.count.providers": "{count} 个供应商",
   "config.count.skills": "{count} 个 Skill",
@@ -1014,6 +1015,7 @@ const enUS: Record<TranslationKey, string> = {
   "config.extensionUninstalledToast":
     "Extension uninstalled. Restart agents for it to take effect.",
   "config.count.configItems": "{count} settings",
+  "config.count.auth": "{count} auth(s)",
   "config.count.extensions": "{count} extensions",
   "config.count.models": "{count} models",
   "config.count.providers": "{count} providers",
