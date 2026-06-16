@@ -825,12 +825,34 @@ export function groupToolMessages(messages: ChatMessage[]): RenderMessage[] {
 		flushTools();
 		flushThinking();
 		if (currentRun.length === 0) return;
+
+		// 合并连续的 assistant 文本消息，避免同一轮回答被拆成多个气泡
+		const merged: Array<MessageItem | ToolGroupItem | ThinkingGroupItem> = [];
+		for (const item of currentRun) {
+			const prev = merged[merged.length - 1];
+			if (
+				item.kind === "message" &&
+				item.message.role === "assistant" &&
+				prev?.kind === "message" &&
+				prev.message.role === "assistant"
+			) {
+				prev.message = {
+					...prev.message,
+					text: prev.message.text + "\n\n" + item.message.text,
+					thinking: (prev.message.thinking || "") + (item.message.thinking ? "\n\n" + item.message.thinking : ""),
+					id: prev.message.id + "|" + item.message.id,
+				};
+			} else {
+				merged.push(item);
+			}
+		}
+
 		result.push({
 			kind: "agent-run",
-			id: currentRun
+			id: merged
 				.map((item) => (item.kind === "message" ? item.message.id : item.id))
 				.join("|"),
-			items: currentRun,
+			items: merged,
 			startedAt: runStartedAt,
 			endedAt: runEndedAt || runStartedAt,
 		});
