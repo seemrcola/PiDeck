@@ -706,6 +706,8 @@ const zhCN = {
   "update.openRelease": "打开 Release",
   "update.openReleasePage": "打开 Release 页面",
   "update.recommendedAsset": "推荐下载：{name}",
+  "update.upToDateTitle": "已是最新版本",
+  "update.upToDateMessage": "您当前使用的是最新版本 v{version}。",
 } as const;
 
 export type TranslationKey = keyof typeof zhCN;
@@ -1447,6 +1449,8 @@ const enUS: Record<TranslationKey, string> = {
   "update.openRelease": "Open Release",
   "update.openReleasePage": "Open Release page",
   "update.recommendedAsset": "Recommended download: {name}",
+  "update.upToDateTitle": "Up to date",
+  "update.upToDateMessage": "You are already running the latest version v{version}.",
 };
 
 type Params = Record<string, string | number | boolean | null | undefined>;

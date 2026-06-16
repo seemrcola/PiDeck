@@ -226,6 +226,8 @@ export type AppSettings = {
 	telemetryInstallId?: string;
 	/** 最近一次发送 app_heartbeat 的本地日期，格式 YYYY-MM-DD */
 	telemetryLastHeartbeatDate?: string;
+	/** 应用安装类型：portable（便携版）或 installed（安装版），启动时自动检测并持久化 */
+	installationType?: "portable" | "installed";
 };
 
 export type PiInstallStatus = {

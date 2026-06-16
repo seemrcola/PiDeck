@@ -369,6 +369,7 @@ export function App() {
   const [updateInfo, setUpdateInfo] = useState<AppUpdateInfo | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateChecking, setUpdateChecking] = useState(false);
+  const [upToDateVersion, setUpToDateVersion] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [windowAlwaysOnTop, setWindowAlwaysOnTop] = useState(false);
@@ -1370,10 +1371,11 @@ export function App() {
       if (next.hasUpdate) {
         setUpdateInfo(next);
       } else if (source === "manual") {
+        // 手动检查且无更新时，显示模态框提示
+        setUpToDateVersion(next.currentVersion);
         setSettingsNotice(
           t("app.latestVersionNotice", { version: next.currentVersion }),
         );
-        showToast(t("app.latestVersion"));
       }
     } catch (error) {
       if (source === "manual") {
@@ -3957,6 +3959,7 @@ export function App() {
           customPiPath={customPiPath}
           customPathValidating={customPathValidating}
           customPathResult={customPathResult}
+          updateChecking={updateChecking}
           onCustomPathChange={(path) => {
             setCustomPiPath(path);
             setCustomPathResult(null);
@@ -4011,6 +4014,14 @@ export function App() {
           message={updateError}
           releasesUrl={appInfo.releasesUrl}
           onClose={() => setUpdateError(null)}
+          onOpenRelease={() => api.app.openExternal(appInfo.releasesUrl)}
+        />
+      )}
+      {upToDateVersion && (
+        <UpToDateModal
+          version={upToDateVersion}
+          releasesUrl={appInfo.releasesUrl}
+          onClose={() => setUpToDateVersion(null)}
           onOpenRelease={() => api.app.openExternal(appInfo.releasesUrl)}
         />
       )}
@@ -4356,6 +4367,35 @@ function UpdateErrorModal(props: {
         <div className="update-actions">
           <button onClick={props.onClose}>{t("common.close")}</button>
           <button className="primary" onClick={props.onOpenRelease}>
+            {t("update.openReleasePage")}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function UpToDateModal(props: {
+  version: string;
+  releasesUrl: string;
+  onClose: () => void;
+  onOpenRelease: () => void;
+}) {
+  return (
+    <div className="modal-backdrop update-backdrop">
+      <section className="update-modal update-uptodate-modal">
+        <div className="modal-header">
+          <strong>{t("update.upToDateTitle")}</strong>
+          <CloseIconButton label={t("common.close")} onClick={props.onClose} />
+        </div>
+        <div className="update-body">
+          <p className="update-version-line">
+            {t("update.upToDateMessage", { version: props.version })}
+          </p>
+        </div>
+        <div className="update-actions">
+          <button onClick={props.onClose}>{t("common.close")}</button>
+          <button onClick={props.onOpenRelease}>
             {t("update.openReleasePage")}
           </button>
         </div>

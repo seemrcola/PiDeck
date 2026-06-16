@@ -2972,6 +2972,7 @@ export function SettingsModal(props: {
 	customPiPath: string;
 	customPathValidating: boolean;
 	customPathResult: PiInstallStatus | null;
+	updateChecking: boolean;
 	onCustomPathChange: (path: string) => void;
 	onValidateCustomPath: () => void;
 	onClearCustomPath: () => void;
@@ -3406,7 +3407,7 @@ export function SettingsModal(props: {
 											<strong>{t("settings.currentVersion")}</strong>
 											<small>v{props.appInfo.version}</small>
 										</div>
-										<Button onClick={props.onCheckUpdate}>{t("settings.checkUpdate")}</Button>
+										<Button onClick={props.onCheckUpdate} loading={props.updateChecking}>{t("settings.checkUpdate")}</Button>
 									</div>
 								</SettingsSection>
 								<SettingsSection title={t("settings.debug")}>

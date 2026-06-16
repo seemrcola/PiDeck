@@ -862,6 +862,23 @@ select:focus-visible {
 	display: block;
 	flex: none;
 }
+/* Button loading 状态 */
+.ui-button-loading {
+	position: relative;
+	cursor: wait;
+}
+.ui-button-spinner {
+	width: 14px;
+	height: 14px;
+	border: 2px solid currentColor;
+	border-top-color: transparent;
+	border-radius: var(--radius-pill);
+	animation: spin 0.7s linear infinite;
+	flex: none;
+}
+.ui-button-content-loading {
+	opacity: 0.6;
+}
 .search-row {
 	height: 52px;
 	display: grid;
@@ -2714,6 +2731,32 @@ body.is-terminal-resizing .terminal-resize-handle::before {
 	color: var(--color-warning);
 	background: color-mix(in srgb, var(--color-warning) 10%, transparent);
 	border-color: color-mix(in srgb, var(--color-warning) 34%, var(--color-border-subtle));
+	animation: runningPulse 1.5s ease-in-out infinite;
+}
+
+/* 运行中标签的脉动动画 */
+@keyframes runningPulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.7;
+	}
+}
+
+/* 为运行中标签添加动画省略号 */
+.run-activity-summary b.running::after {
+	content: '';
+	animation: loadingDots 1.5s steps(4, end) infinite;
+	display: inline-block;
+	width: 1.2em;
+}
+
+@keyframes loadingDots {
+	0%, 25% { content: ''; }
+	26%, 50% { content: '.'; }
+	51%, 75% { content: '..'; }
+	76%, 100% { content: '...'; }
 }
 .run-activity-header em {
 	color: var(--color-info);
@@ -2752,6 +2795,17 @@ body.is-terminal-resizing .terminal-resize-handle::before {
 .activity-tool-chip.running {
 	color: var(--color-warning);
 	border-color: color-mix(in srgb, var(--color-warning) 34%, var(--color-border-subtle));
+	animation: chipPulse 1.5s ease-in-out infinite;
+}
+
+/* 工具运行中的脉动动画 */
+@keyframes chipPulse {
+	0%, 100% {
+		background: var(--color-bg-panel);
+	}
+	50% {
+		background: color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-panel));
+	}
 }
 .activity-tool-chip.warning {
 	color: var(--color-warning);
@@ -2814,6 +2868,27 @@ body.is-terminal-resizing .terminal-resize-handle::before {
 	background: var(--color-warning);
 	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-warning) 14%, transparent);
 	animation: activityPulse 1.4s ease-in-out infinite;
+}
+
+/* 运行中事件的标题添加淡入淡出动画 */
+.activity-event.running .activity-event-main strong {
+	animation: textPulse 1.5s ease-in-out infinite;
+}
+
+/* 为运行中事件添加动画省略号 */
+.activity-event.running .activity-event-main strong::after {
+	content: '';
+	animation: loadingDots 1.5s steps(4, end) infinite;
+	display: inline;
+}
+
+@keyframes textPulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.7;
+	}
 }
 .activity-event.warning .activity-event-dot {
 	background: var(--color-warning);
@@ -3223,6 +3298,19 @@ body.is-terminal-resizing .terminal-resize-handle::before {
 .thinking-block.streaming {
 	border-color: color-mix(in srgb, var(--color-info) 24%, var(--color-border-subtle));
 	background: color-mix(in srgb, var(--color-info) 8%, var(--color-bg-panel));
+	animation: thinkingGlow 2s ease-in-out infinite;
+}
+
+/* 思考中的边框发光动画 - 增强版 */
+@keyframes thinkingGlow {
+	0%, 100% {
+		border-color: color-mix(in srgb, var(--color-info) 30%, var(--color-border-subtle));
+		box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-info) 0%, transparent);
+	}
+	50% {
+		border-color: color-mix(in srgb, var(--color-info) 60%, var(--color-border-subtle));
+		box-shadow: 0 0 8px 2px color-mix(in srgb, var(--color-info) 20%, transparent);
+	}
 }
 .thinking-header {
 	display: flex;
@@ -3235,6 +3323,56 @@ body.is-terminal-resizing .terminal-resize-handle::before {
 	line-height: var(--line-height-control);
 	cursor: pointer;
 	user-select: none;
+}
+
+/* 思考中的背景脉动 */
+.thinking-block.streaming .thinking-header {
+	animation: thinkingHeaderPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes thinkingHeaderPulse {
+	0%, 100% {
+		background: transparent;
+	}
+	50% {
+		background: color-mix(in srgb, var(--color-info) 6%, transparent);
+	}
+}
+
+/* 思考中的标题文字添加加载点动画 */
+.thinking-block.streaming .thinking-header span::after {
+	content: '';
+	animation: loadingDots 1.5s steps(4, end) infinite;
+	display: inline-block;
+	width: 1.2em;
+}
+
+/* 思考中的图标脉动 */
+.thinking-block.streaming .thinking-header svg {
+	animation: iconSpin 2s linear infinite;
+}
+
+@keyframes iconSpin {
+	0% {
+		transform: rotate(0deg) scale(1);
+		opacity: 1;
+	}
+	25% {
+		transform: rotate(90deg) scale(1.15);
+		opacity: 0.8;
+	}
+	50% {
+		transform: rotate(180deg) scale(1);
+		opacity: 1;
+	}
+	75% {
+		transform: rotate(270deg) scale(1.15);
+		opacity: 0.8;
+	}
+	100% {
+		transform: rotate(360deg) scale(1);
+		opacity: 1;
+	}
 }
 .thinking-header span {
 	flex: 1;
@@ -7920,6 +8058,17 @@ body.is-composer-resizing .composer-resize-handle::after {
 .update-actions button:disabled {
 	opacity: 0.6;
 	cursor: default;
+}
+
+/* 无更新可用模态框的友好提示样式 */
+.update-uptodate-modal .update-version-line {
+	color: var(--color-text-primary);
+	font-size: var(--font-size-base);
+	margin-bottom: 0;
+}
+
+.update-uptodate-modal .modal-header strong {
+	color: var(--color-success);
 }
 
 /* ── Skills Tab ─────────────────────────────────────── */

@@ -101,58 +101,127 @@ function compareVersions(left: string, right: string) {
 	return 0;
 }
 
-function selectRecommendedAsset(assets: AppUpdateAsset[]) {
+function selectRecommendedAsset(
+	assets: AppUpdateAsset[],
+	installationType?: "portable" | "installed",
+) {
 	const platform = process.platform;
 	const arch = process.arch;
-	// 第一版只负责把用户带到最合适的下载项；不同安装形态仍由用户决定如何安装，避免误覆盖便携版/包管理器安装。
+	// 优先使用持久化的安装类型，回退到运行时检测
+	const isPortable =
+		installationType === "portable" ||
+		(installationType === undefined && process.env.PORTABLE_EXECUTABLE_DIR !== undefined);
+
+	// 映射资产以便匹配
 	const candidates = assets.map((asset) => ({
 		...asset,
 		lowerName: asset.name.toLowerCase(),
 	}));
+
+	// 根据架构确定关键词，严格匹配
 	const archKeywords =
 		arch === "arm64" ? ["arm64", "aarch64"] : ["x64", "amd64", "x86_64"];
 	const matchesArch = (name: string) =>
 		archKeywords.some((keyword) => name.includes(keyword));
+
+	// 检查是否为非目标架构（用于排除不匹配的资产）
+	const isWrongArch = (name: string) => {
+		if (arch === "arm64") {
+			// 当前是 ARM64，排除 x64 相关的
+			return /\b(x64|amd64|x86_64)\b/i.test(name);
+		} else {
+			// 当前是 x64，排除 arm64 相关的
+			return /\b(arm64|aarch64)\b/i.test(name);
+		}
+	};
+
 	if (platform === "win32") {
-		return (
-			candidates.find(
-				(asset) => asset.lowerName.endsWith(".exe") && matchesArch(asset.lowerName),
-			) ??
-			candidates.find((asset) => asset.lowerName.endsWith(".exe")) ??
-			candidates.find(
-				(asset) => asset.lowerName.endsWith(".zip") && matchesArch(asset.lowerName),
-			)
-		);
+		// Windows: 优先匹配当前安装形态（便携版 vs 安装版）和架构
+		if (isPortable) {
+			// 便携版：优先推荐 zip
+			return (
+				candidates.find(
+					(asset) => asset.lowerName.endsWith(".zip") && matchesArch(asset.lowerName),
+				) ??
+				candidates.find(
+					(asset) => asset.lowerName.endsWith(".zip") && !isWrongArch(asset.lowerName),
+				) ??
+				candidates.find(
+					(asset) => asset.lowerName.endsWith(".exe") && matchesArch(asset.lowerName),
+				) ??
+				candidates.find(
+					(asset) => asset.lowerName.endsWith(".exe") && !isWrongArch(asset.lowerName),
+				)
+			);
+		} else {
+			// 安装版：优先推荐 exe
+			return (
+				candidates.find(
+					(asset) => asset.lowerName.endsWith(".exe") && matchesArch(asset.lowerName),
+				) ??
+				candidates.find(
+					(asset) => asset.lowerName.endsWith(".exe") && !isWrongArch(asset.lowerName),
+				) ??
+				candidates.find(
+					(asset) => asset.lowerName.endsWith(".zip") && matchesArch(asset.lowerName),
+				) ??
+				candidates.find(
+					(asset) => asset.lowerName.endsWith(".zip") && !isWrongArch(asset.lowerName),
+				)
+			);
+		}
 	}
+
 	if (platform === "darwin") {
+		// macOS: 优先 dmg，严格匹配架构
 		return (
 			candidates.find(
 				(asset) => asset.lowerName.endsWith(".dmg") && matchesArch(asset.lowerName),
 			) ??
-			candidates.find((asset) => asset.lowerName.endsWith(".dmg")) ??
+			candidates.find(
+				(asset) => asset.lowerName.endsWith(".dmg") && !isWrongArch(asset.lowerName),
+			) ??
 			candidates.find(
 				(asset) => asset.lowerName.endsWith(".zip") && matchesArch(asset.lowerName),
+			) ??
+			candidates.find(
+				(asset) => asset.lowerName.endsWith(".zip") && !isWrongArch(asset.lowerName),
 			)
 		);
 	}
+
 	if (platform === "linux") {
+		// Linux: 优先 AppImage，严格匹配架构
 		return (
 			candidates.find(
 				(asset) => asset.lowerName.includes("appimage") && matchesArch(asset.lowerName),
 			) ??
 			candidates.find(
+				(asset) =>
+					asset.lowerName.includes("appimage") && !isWrongArch(asset.lowerName),
+			) ??
+			candidates.find(
 				(asset) => asset.lowerName.endsWith(".deb") && matchesArch(asset.lowerName),
+			) ??
+			candidates.find(
+				(asset) => asset.lowerName.endsWith(".deb") && !isWrongArch(asset.lowerName),
 			) ??
 			candidates.find(
 				(asset) => asset.lowerName.endsWith(".tar.gz") && matchesArch(asset.lowerName),
 			) ??
-			candidates.find((asset) => asset.lowerName.includes("appimage"))
+			candidates.find(
+				(asset) => asset.lowerName.endsWith(".tar.gz") && !isWrongArch(asset.lowerName),
+			)
 		);
 	}
-	return candidates[0];
+
+	// 回退：返回第一个匹配架构的资产
+	return candidates.find((asset) => matchesArch(asset.lowerName)) ?? candidates[0];
 }
 
-async function checkForAppUpdate(): Promise<AppUpdateInfo> {
+async function checkForAppUpdate(
+	installationType?: "portable" | "installed",
+): Promise<AppUpdateInfo> {
 	const currentVersion = app.getVersion();
 	const response = await fetch(LATEST_RELEASE_API, {
 		headers: {
@@ -179,7 +248,7 @@ async function checkForAppUpdate(): Promise<AppUpdateInfo> {
 		releaseUrl: release.html_url || RELEASES_URL,
 		publishedAt: release.published_at,
 		assets,
-		recommendedAsset: selectRecommendedAsset(assets),
+		recommendedAsset: selectRecommendedAsset(assets, installationType),
 	};
 }
 
@@ -219,6 +288,56 @@ function setupTray() {
 	tray.setContextMenu(contextMenu);
 }
 
+function printStartupInfo() {
+	if (!mainWindow || mainWindow.isDestroyed()) return;
+
+	const settings = settingsStore.get();
+	const appVersion = app.getVersion();
+	const electronVersion = process.versions.electron;
+	const chromeVersion = process.versions.chrome;
+	const nodeVersion = process.versions.node;
+	const platform = process.platform;
+	const arch = process.arch;
+	const installationType = settings.installationType || "unknown";
+	const isPortableEnv = process.env.PORTABLE_EXECUTABLE_DIR !== undefined;
+
+	// 执行 console.log 输出到开发者工具
+	mainWindow.webContents.executeJavaScript(`
+		console.log(
+			"%c╭──────────────────────────────────────────────────────────╮",
+			"color: #8b5cf6; font-weight: bold;"
+		);
+		console.log(
+			"%c│                      PiDeck Desktop                      │",
+			"color: #8b5cf6; font-weight: bold; font-size: 16px;"
+		);
+		console.log(
+			"%c╰──────────────────────────────────────────────────────────╯",
+			"color: #8b5cf6; font-weight: bold;"
+		);
+		console.log("");
+		console.log("%c📦 Application Info", "color: #3b82f6; font-weight: bold; font-size: 14px;");
+		console.log("%c  Version:         %c${appVersion}", "color: #6b7280;", "color: #10b981; font-weight: bold;");
+		console.log("%c  Installation:    %c${installationType}", "color: #6b7280;", "color: #f59e0b; font-weight: bold;");
+		console.log("%c  Platform:        %c${platform} (${arch})", "color: #6b7280;", "color: #8b5cf6;");
+		console.log("");
+		console.log("%c⚡ Runtime Info", "color: #3b82f6; font-weight: bold; font-size: 14px;");
+		console.log("%c  Electron:        %c${electronVersion}", "color: #6b7280;", "color: #06b6d4;");
+		console.log("%c  Chrome:          %c${chromeVersion}", "color: #6b7280;", "color: #06b6d4;");
+		console.log("%c  Node:            %c${nodeVersion}", "color: #6b7280;", "color: #06b6d4;");
+		console.log("");
+		console.log("%c🔧 Debug Info", "color: #3b82f6; font-weight: bold; font-size: 14px;");
+		console.log("%c  PORTABLE_EXECUTABLE_DIR: %c${isPortableEnv ? '✅ Set' : '❌ Not set'}", "color: #6b7280;", "color: ${isPortableEnv ? '#10b981' : '#ef4444'};");
+		console.log("%c  Persistent installationType: %c${installationType}", "color: #6b7280;", "color: #8b5cf6; font-weight: bold;");
+		console.log("");
+		console.log("%c🐛 Found a bug? Report at:", "color: #6b7280;");
+		console.log("%c  https://github.com/pi-desktop/pi-desktop/issues", "color: #3b82f6; text-decoration: underline;");
+		console.log("");
+		console.log("%c🎉 Easter egg: You found it! Thanks for exploring.", "color: #ec4899; font-weight: bold;");
+		console.log("");
+	`);
+}
+
 function createWindow() {
 	const windowOptions = settingsStore.createWindowOptions();
 
@@ -255,6 +374,8 @@ function createWindow() {
 		mainWindow?.show();
 		// 窗口显示后立即最大化，提供更好的默认工作空间
 		mainWindow?.maximize();
+		// 向开发者工具输出启动信息
+		printStartupInfo();
 	});
 
 	// 关闭窗口时根据设置决定：隐藏到托盘还是正常退出
@@ -266,6 +387,55 @@ function createWindow() {
 			// 如果没有启用托盘，关闭窗口时直接退出应用
 			isQuitting = true;
 			app.quit();
+		}
+	});
+
+	// 监听浏览器标准快捷键打开开发者工具
+	mainWindow.webContents.on("before-input-event", (event, input) => {
+		if (!mainWindow || mainWindow.isDestroyed()) return;
+
+		// F12
+		if (input.key === "F12" && input.type === "keyDown") {
+			event.preventDefault();
+			if (mainWindow.webContents.isDevToolsOpened()) {
+				mainWindow.webContents.closeDevTools();
+			} else {
+				mainWindow.webContents.openDevTools({ mode: "detach" });
+			}
+		}
+
+		// Ctrl+Shift+I (Windows/Linux) 或 Cmd+Option+I (macOS)
+		const isMac = process.platform === "darwin";
+		const ctrlOrCmd = isMac ? input.meta : input.control;
+		const shiftOrOption = input.shift || (isMac && input.alt);
+
+		if (
+			ctrlOrCmd &&
+			shiftOrOption &&
+			input.key.toLowerCase() === "i" &&
+			input.type === "keyDown"
+		) {
+			event.preventDefault();
+			if (mainWindow.webContents.isDevToolsOpened()) {
+				mainWindow.webContents.closeDevTools();
+			} else {
+				mainWindow.webContents.openDevTools({ mode: "detach" });
+			}
+		}
+
+		// Ctrl+Shift+J (Windows/Linux) 或 Cmd+Option+J (macOS) - 直接打开 Console
+		if (
+			ctrlOrCmd &&
+			shiftOrOption &&
+			input.key.toLowerCase() === "j" &&
+			input.type === "keyDown"
+		) {
+			event.preventDefault();
+			if (mainWindow.webContents.isDevToolsOpened()) {
+				mainWindow.webContents.closeDevTools();
+			} else {
+				mainWindow.webContents.openDevTools({ mode: "detach", activate: true });
+			}
 		}
 	});
 
@@ -411,7 +581,9 @@ function registerIpc() {
 		version: app.getVersion(),
 		releasesUrl: RELEASES_URL,
 	}));
-	ipcMain.handle(ipcChannels.appCheckUpdate, () => checkForAppUpdate());
+	ipcMain.handle(ipcChannels.appCheckUpdate, () =>
+		checkForAppUpdate(settingsStore.get().installationType),
+	);
 	ipcMain.handle(ipcChannels.appFeedbackEnvironment, async () => {
 		// 反馈报告只包含诊断必需的运行时版本与 pi 检测结果，不读取配置密钥或会话内容。
 		const pi = await piLocator.check();
@@ -429,8 +601,14 @@ function registerIpc() {
 		// 外部链接统一经主进程打开，避免 renderer 直接依赖 shell 权限，也便于后续做白名单校验。
 		await shell.openExternal(url);
 	});
-	ipcMain.handle(ipcChannels.appRestart, () => {
+	ipcMain.handle(ipcChannels.appRestart, async () => {
+		// 标记为退出状态，避免 closeToTray 阻止重启
 		isQuitting = true;
+		// 停止所有 Agent 和服务
+		await webServiceManager?.stop();
+		terminalManager?.closeAll();
+		agentManager?.stopAll();
+		// 重启应用
 		app.relaunch();
 		app.quit();
 	});
