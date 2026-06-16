@@ -6,6 +6,50 @@ All notable changes to PiDeck are documented here.
 
 ## [Unreleased]
 
+## v0.6.1 - 2026-06-16
+
+### 🚀 New Features
+
+- **Batch delete in config**: Select and delete multiple providers/auth at once
+- **Duplicate config**: One-click copy for providers and auth entries
+- **Delete confirmation dialogs**: Prevent accidental deletion of config entries
+- **Auth provider picker**: 29 pre-configured providers with env vars and setup links
+- **Provider config guide**: Built-in API type reference, compatibility guide, and troubleshooting
+- **Auth config guide**: Step-by-step guidance for setting up credentials
+- **Collapsible model groups**: Model picker supports collapsing provider groups, auto-expand on search
+- **API type dropdown with descriptions**: Helps users choose the right API type
+- **User-Agent presets**: Added claude-cli, claude-code, Kilo-Code and more
+
+### ✨ Improvements
+
+- **Compact chat header**: Title and path on first row, status/secondary info on second row
+- **Tree-style model picker**: Indentation, left border, and grouped headers
+- **Visible scrollbars**: Session area and model picker now show thin scrollbars
+- **New session sorting**: Newest agents appear at the top
+- **UI copy polish**: Button labels and terminology consistently translated
+- **Left-aligned form labels**: Unified label style across config forms
+- **Smaller card heights**: More compact config management cards
+- **Fetch models button relocated**: Moved from form area to model list header
+- **Advanced fields hint redesign**: Clean sidebar style instead of blue background
+- **Custom provider input clarity**: Clearer labeling for adding non-preset providers
+- **Batch delete red styling**: Danger-fill buttons for batch operations
+
+### 🐛 Fixes
+
+- Fix agent status text wrapping in collapsed list
+- Fix agent status disappearing when switching tabs
+- Fix anthropic-messages test returning false 404 with max_tokens=1
+- Fix horizontal scrollbar in model picker
+- Fix checkbox triggering expand/collapse in batch mode
+- Fix delete confirmation button text obscured by background
+
+### 🌐 i18n
+
+- Unified terminology: Provider → 供应商, Auth → 认证
+- New translation keys for path, ctx, cache
+- Thinking level labels (Off/Low/Medium/High) now use translated text
+- 40+ new translation keys across all new features
+
 ## v0.6.0 - 2026-06-14
 
 ### Added
