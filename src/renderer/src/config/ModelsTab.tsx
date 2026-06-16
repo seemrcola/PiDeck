@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Copy, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, Trash2 } from "lucide-react";
 import { t } from "../i18n";
 import type { ModelItem, ModelsFile } from "./configTypes";
 import { ApiTypeInput, ConfigSelect, SecretInput } from "./ConfigShared";
@@ -160,6 +160,7 @@ export function ModelsTab(props: {
 	const [addingModelDropdown, setAddingModelDropdown] = useState<string | null>(null);
 	const [addingModelId, setAddingModelId] = useState("");
 	const [pendingModelFocusKey, setPendingModelFocusKey] = useState<string | null>(null);
+	const [showGuide, setShowGuide] = useState(false);
 	const modelIdInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 	const getModelInputKey = (providerName: string, index: number) =>
 		`${providerName}\u0000${index}`;
@@ -195,6 +196,13 @@ export function ModelsTab(props: {
 						{t("config.addProvider")}
 					</button>
 					<button
+						className="config-btn"
+						onClick={() => setShowGuide(!showGuide)}
+						disabled={saving}
+					>
+						{t("config.providerGuide")}
+					</button>
+					<button
 						className="config-btn primary"
 						onClick={props.onSave}
 						disabled={saving}
@@ -203,6 +211,72 @@ export function ModelsTab(props: {
 					</button>
 				</div>
 			</div>
+
+			{/* Provider 配置指南 */}
+			{showGuide && (
+				<div className="config-auth-guide config-provider-guide">
+					<div className="config-auth-guide-header">
+						<strong>{t("config.providerGuideTitle")}</strong>
+						<button className="config-icon-btn" onClick={() => setShowGuide(false)}>×</button>
+					</div>
+					<div className="config-auth-guide-body">
+						<p>{t("config.providerGuideIntro")}</p>
+
+						<strong className="config-provider-guide-section">{t("config.providerGuideApis")}</strong>
+						<div className="config-provider-api-grid">
+							<div className="config-provider-api-item">
+								<code>openai-completions</code>
+								<span>{t("config.providerGuideApiDesc1")}</span>
+							</div>
+							<div className="config-provider-api-item">
+								<code>anthropic-messages</code>
+								<span>{t("config.providerGuideApiDesc2")}</span>
+							</div>
+							<div className="config-provider-api-item">
+								<code>openai-responses</code>
+								<span>{t("config.providerGuideApiDesc3")}</span>
+							</div>
+							<div className="config-provider-api-item">
+								<code>google-generative-ai</code>
+								<span>{t("config.providerGuideApiDesc4")}</span>
+							</div>
+						</div>
+
+						<strong className="config-provider-guide-section">{t("config.providerGuideCompat")}</strong>
+						<table className="config-provider-compat-table">
+							<tbody>
+								<tr>
+									<td><code>supportsDeveloperRole</code></td>
+									<td>{t("config.providerGuideCompatDevRole")}</td>
+								</tr>
+								<tr>
+									<td><code>supportsReasoningEffort</code></td>
+									<td>{t("config.providerGuideCompatReasoning")}</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<strong className="config-provider-guide-section">{t("config.providerGuideTroubleshoot")}</strong>
+						<ul className="config-provider-guide-list">
+							<li>{t("config.providerGuideTip1")}</li>
+							<li>{t("config.providerGuideTip2")}</li>
+							<li>{t("config.providerGuideTip3")}</li>
+							<li>{t("config.providerGuideTip4")}</li>
+						</ul>
+
+						<p className="config-auth-guide-note">
+							{t("config.providerGuideNote")}{" "}
+							<a href="https://pi.dev/docs/latest/models" target="_blank" rel="noreferrer">
+								models docs <ExternalLink size={12} />
+							</a>
+							{" · "}
+							<a href="https://pi.dev/docs/latest/providers" target="_blank" rel="noreferrer">
+								providers docs <ExternalLink size={12} />
+							</a>
+						</p>
+					</div>
+				</div>
+			)}
 
 			{props.addingProvider && (
 				<div className="config-add-provider-row">

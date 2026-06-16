@@ -6706,6 +6706,73 @@ body.is-composer-resizing .composer-resize-handle::after {
 	gap: 2px;
 }
 
+/* Provider 配置指南 */
+.config-provider-guide {
+	margin: 0 0 16px;
+}
+.config-provider-guide-section {
+	display: block;
+	margin-top: 14px;
+	margin-bottom: 6px;
+	font-size: var(--font-size-base);
+	color: var(--color-text-primary);
+}
+.config-provider-api-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+}
+.config-provider-api-item {
+	padding: 8px 10px;
+	border-radius: var(--radius-sm);
+	background: var(--color-bg-hover);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.config-provider-api-item code {
+	font-family: var(--font-family-mono);
+	font-size: var(--font-size-micro);
+	font-weight: 600;
+	color: var(--color-accent);
+}
+.config-provider-api-item span {
+	font-size: var(--font-size-micro);
+	color: var(--color-text-tertiary);
+}
+.config-provider-compat-table {
+	width: 100%;
+	font-size: var(--font-size-caption);
+	border-collapse: collapse;
+}
+.config-provider-compat-table td {
+	padding: 6px 10px;
+	border-bottom: 1px solid var(--color-border-subtle);
+	vertical-align: top;
+}
+.config-provider-compat-table td:first-child {
+	width: 180px;
+	flex-shrink: 0;
+}
+.config-provider-compat-table code {
+	font-family: var(--font-family-mono);
+	font-size: var(--font-size-micro);
+	color: var(--color-accent);
+	background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+	padding: 1px 5px;
+	border-radius: var(--radius-xs);
+}
+.config-provider-guide-list {
+	margin: 6px 0;
+	padding-left: 20px;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-secondary);
+}
+.config-provider-guide-list li {
+	margin-bottom: 6px;
+	line-height: 1.5;
+}
+
 /* Auth 供应商选择器 */
 .config-auth-selector {
 	margin: 0 0 16px;
