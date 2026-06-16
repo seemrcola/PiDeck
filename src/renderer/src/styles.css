@@ -6189,10 +6189,10 @@ body.is-composer-resizing .composer-resize-handle::after {
 
 .config-advanced-preserved {
 	display: flex;
-	align-items: center;
-	gap: 8px;
+	align-items: flex-start;
+	gap: 10px;
 	margin: 6px 0 10px;
-	padding: 6px 10px;
+	padding: 8px 12px;
 	border-left: 3px solid var(--color-border-default);
 	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 	background: var(--color-bg-muted);
@@ -6204,11 +6204,13 @@ body.is-composer-resizing .composer-resize-handle::after {
 	color: var(--color-text-primary);
 	white-space: nowrap;
 	flex-shrink: 0;
+	min-width: 100px;
 }
 .config-advanced-preserved span {
 	font-size: var(--font-size-micro);
 	line-height: 1.45;
 	color: var(--color-text-secondary);
+	text-align: left;
 }
 .config-advanced-preserved a,
 .config-model-advanced-note a,
