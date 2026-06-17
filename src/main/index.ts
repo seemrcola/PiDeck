@@ -9,6 +9,7 @@ import {
 	Tray,
 } from "electron";
 import { join } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
 import { is } from "@electron-toolkit/utils";
 // 使用 ?asset 后缀导入图标，electron-vite 会在构建时将其复制到输出目录并提供正确的运行时路径
 // 这解决了打包后 build/ 目录不在 asar 中导致托盘图标丢失的问题
@@ -374,7 +375,7 @@ function printStartupInfo() {
 		console.log("%c  Persistent installationType: %c${installationType}", "color: #6b7280;", "color: #8b5cf6; font-weight: bold;");
 		console.log("");
 		console.log("%c🐛 Found a bug? Report at:", "color: #6b7280;");
-		console.log("%c  https://github.com/pi-desktop/pi-desktop/issues", "color: #3b82f6; text-decoration: underline;");
+		console.log("%c  https://github.com/ayuayue/PiDeck/issues", "color: #3b82f6; text-decoration: underline;");
 		console.log("");
 		console.log("%c🎉 Easter egg: You found it! Thanks for exploring.", "color: #ec4899; font-weight: bold;");
 		console.log("");
@@ -510,6 +511,21 @@ function registerIpc() {
 		const error = await shell.openPath(path);
 		// Electron 通过返回字符串报告打开失败；显式抛出后前端才能提示路径不存在或系统无法打开。
 		if (error) throw new Error(error);
+	});
+
+	ipcMain.handle(ipcChannels.filesReadContent, async (_event, path: string) => {
+		try {
+			return await readFile(path, "utf8");
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+				return "";
+			}
+			throw error;
+		}
+	});
+
+	ipcMain.handle(ipcChannels.filesWriteContent, async (_event, path: string, content: string) => {
+		await writeFile(path, content, "utf8");
 	});
 
 	ipcMain.handle(

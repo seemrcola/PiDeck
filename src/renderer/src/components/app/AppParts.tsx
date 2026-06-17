@@ -1433,6 +1433,7 @@ export const AgentRun = memo(function AgentRun(props: {
 	showThinking?: boolean;
 	onOpenExternal: (url: string) => void;
 	onOpenFile?: (path: string) => void;
+	onDiffFile?: (path: string) => void;
 	onResendUserMessage?: (message: ChatMessage) => void;
 	fileSummariesByMessage?: Record<string, SessionModifiedFile[]>;
 }) {
@@ -1484,7 +1485,7 @@ export const AgentRun = memo(function AgentRun(props: {
 									compact
 								/>
 								{item.message.role === "assistant" && fileSummary && fileSummary.length > 0 && (
-									<SessionFileSummary files={fileSummary} onOpenFile={props.onOpenFile} />
+									<SessionFileSummary files={fileSummary} onOpenFile={props.onOpenFile} onDiffFile={props.onDiffFile} />
 								)}
 							</div>
 						);
@@ -2135,6 +2136,9 @@ export function DrawerContent(props: {
 	onCopySession: (session: SessionSummary) => void | Promise<void>;
 	onExportSession: (session: SessionSummary) => void | Promise<void>;
 	onDeleteSession: (session: SessionSummary) => void | Promise<void>;
+	onDiffFile?: (path: string) => void;
+	onOpenFile?: (path: string) => void;
+	onViewFile?: (path: string) => void;
 }) {
 	const title =
 		props.panel === "files"
@@ -2181,6 +2185,9 @@ export function DrawerContent(props: {
 					onToggleDirectory={props.onToggleDirectory}
 					onFileContextMenu={props.onFileContextMenu}
 					onRefreshFiles={props.onRefreshFiles}
+					onDiffFile={props.onDiffFile}
+					onOpenFile={props.onOpenFile}
+					onViewFile={props.onViewFile}
 				/>
 			)}
 			{props.panel === "sessions" && (
@@ -2208,6 +2215,9 @@ function FilesPanel(props: {
 	onToggleDirectory: (path: string) => void;
 	onFileContextMenu: (node: FileTreeNode, x: number, y: number) => void;
 	onRefreshFiles: () => void;
+	onDiffFile?: (path: string) => void;
+	onOpenFile?: (path: string) => void;
+	onViewFile?: (path: string) => void;
 }) {
 	const [modifiedFilesExpanded, setModifiedFilesExpanded] = useState(false);
 	// 后端按修改时间升序传入；抽屉顶部优先展示最新文件，避免文件多时用户看不到刚改的内容。
@@ -2248,6 +2258,7 @@ function FilesPanel(props: {
 									e.preventDefault();
 									props.onFileContextMenu(fakeNode, e.clientX, e.clientY);
 								}}
+								onClick={() => props.onDiffFile?.(file.path)}
 							>
 								<span
 									className={`modified-file-icon${isRunning ? "" : " done"}`}
@@ -2286,6 +2297,8 @@ function FilesPanel(props: {
 					expandedDirs={props.expandedDirs}
 					onToggleDirectory={props.onToggleDirectory}
 					onFileContextMenu={props.onFileContextMenu}
+					onOpenFile={props.onOpenFile}
+					onDiffFile={props.onDiffFile}
 				/>
 			))}
 		</div>
@@ -2295,6 +2308,7 @@ function FilesPanel(props: {
 export function SessionFileSummary(props: {
 	files: SessionModifiedFile[];
 	onOpenFile?: (path: string) => void;
+	onDiffFile?: (path: string) => void;
 }) {
 	const [expanded, setExpanded] = useState(false);
 	const totalLines = props.files.reduce(
@@ -2323,7 +2337,7 @@ export function SessionFileSummary(props: {
 								className="session-file-summary-row"
 								type="button"
 								title={file.path}
-								onClick={() => props.onOpenFile?.(file.path)}
+								onClick={() => props.onDiffFile?.(file.path)}
 							>
 								<span className="session-file-summary-name">{fileName}</span>
 								<span
@@ -2357,6 +2371,9 @@ function FileNode(props: {
 	expandedDirs: Set<string>;
 	onToggleDirectory: (path: string) => void;
 	onFileContextMenu: (node: FileTreeNode, x: number, y: number) => void;
+	onOpenFile?: (path: string) => void;
+	onViewFile?: (path: string) => void;
+	onDiffFile?: (path: string) => void;
 	depth?: number;
 }) {
 	const { node, expandedDirs, onToggleDirectory, depth = 0 } = props;
@@ -2374,6 +2391,7 @@ function FileNode(props: {
 					className="file file-node-row"
 					style={rowStyle}
 					title={node.relativePath}
+					onClick={() => props.onViewFile?.(node.path)}
 					onContextMenu={menu}
 				>
 					<span className="file-node-icon">{fileIcon(node.name)}</span>
@@ -2404,6 +2422,9 @@ function FileNode(props: {
 							expandedDirs={expandedDirs}
 							onToggleDirectory={onToggleDirectory}
 							onFileContextMenu={props.onFileContextMenu}
+							onOpenFile={props.onOpenFile}
+							onViewFile={props.onViewFile}
+							onDiffFile={props.onDiffFile}
 							depth={depth + 1}
 						/>
 					))}

@@ -180,6 +180,8 @@ export function createPreviewApi(): PiDesktopApi {
 			list: async () => files,
 			open: async () => undefined,
 			showInFolder: async () => undefined,
+			readContent: async () => "",
+			writeContent: async () => undefined,
 		},
 		sessions: {
 			list: async () => getSessions(),

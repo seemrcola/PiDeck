@@ -59,6 +59,10 @@ const api = {
 			ipcRenderer.invoke(ipcChannels.filesOpen, path) as Promise<void>,
 		showInFolder: (path: string) =>
 			ipcRenderer.invoke(ipcChannels.filesShowInFolder, path) as Promise<void>,
+		readContent: (path: string) =>
+			ipcRenderer.invoke(ipcChannels.filesReadContent, path) as Promise<string>,
+		writeContent: (path: string, content: string) =>
+			ipcRenderer.invoke(ipcChannels.filesWriteContent, path, content) as Promise<void>,
 	},
 	sessions: {
 		list: (projectId?: string) =>

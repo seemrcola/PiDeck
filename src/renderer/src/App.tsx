@@ -85,6 +85,7 @@ import {
   type DrawerPanel,
   type SessionModifiedFile,
 } from "./components/app/AppParts";
+import { FileDiffViewer } from "./components/app/FileDiffViewer";
 import type {
   AgentRuntimeState,
   AgentTab,
@@ -344,6 +345,8 @@ export function App() {
     y: number;
     project: Project;
   } | null>(null);
+  const [diffViewFile, setDiffViewFile] = useState<string | null>(null);
+  const [diffViewMode, setDiffViewMode] = useState<"view" | "diff">("view");
   const [codexImportProject, setCodexImportProject] = useState<Project | null>(
     null,
   );
@@ -1455,6 +1458,16 @@ export function App() {
         error: error instanceof Error ? error.message : String(error),
       }));
     });
+  }
+
+  function viewFilePath(path: string) {
+    setDiffViewMode("view");
+    setDiffViewFile(path);
+  }
+
+  function diffFilePath(path: string) {
+    setDiffViewMode("diff");
+    setDiffViewFile(path);
   }
 
   async function refreshSessionHistory(projectId = sessionsProjectId) {
@@ -3417,6 +3430,7 @@ export function App() {
                     onPreviewImage={setPreviewImage}
                     onOpenExternal={(url) => api.app.openExternal(url)}
                     onOpenFile={openFilePath}
+                    onDiffFile={diffFilePath}
                     onResendUserMessage={resendUserMessage}
                     showThinking={settings.showThinking}
                     fileSummariesByMessage={turnFileSummaryByMessage}
@@ -3444,6 +3458,7 @@ export function App() {
                         <SessionFileSummary
                           files={turnFileSummaryByMessage[item.message.id]}
                           onOpenFile={openFilePath}
+                          onDiffFile={diffFilePath}
                         />
                       )}
                   </Fragment>
@@ -3750,6 +3765,9 @@ export function App() {
               }
               onExportSession={exportHistorySession}
               onDeleteSession={deleteHistorySession}
+              onDiffFile={diffFilePath}
+              onViewFile={viewFilePath}
+              onOpenFile={openFilePath}
             />
           </LazyWrapper>
         </aside>
@@ -4056,6 +4074,16 @@ export function App() {
           releasesUrl={appInfo.releasesUrl}
           onClose={() => setUpToDateVersion(null)}
           onOpenRelease={() => api.app.openExternal(appInfo.releasesUrl)}
+        />
+      )}
+      {diffViewFile && (
+        <FileDiffViewer
+          filePath={diffViewFile}
+          mode={diffViewMode}
+          onClose={() => { setDiffViewFile(null); setDiffViewMode("view"); }}
+          readContent={(path) => api.files.readContent(path)}
+          saveContent={(path, content) => api.files.writeContent(path, content)}
+          theme={document.documentElement.dataset.theme === "dark" ? "dark" : "light"}
         />
       )}
       {previewImage && (
