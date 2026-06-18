@@ -236,6 +236,10 @@ function ConfigModalContent(props: ConfigModalProps) {
 		}
 	}
 
+	// 每个 provider 独立的模型拉取错误状态，避免全局 setError 相互覆盖
+	const [fetchModelsErrorByProvider, setFetchModelsErrorByProvider] = useState<
+		Record<string, string | undefined>
+	>({});
 	// 快速测试连接
 	const [testingProvider, setTestingProvider] = useState<string | null>(null);
 	const [testResult, setTestResult] = useState<{
@@ -443,11 +447,17 @@ function ConfigModalContent(props: ConfigModalProps) {
 	const handleFetchModels = async (providerName: string) => {
 		const provider = modelsData.providers[providerName];
 		if (!provider?.baseUrl || !provider?.apiKey) {
-			setError(t("config.missingBaseUrlApiKey"));
+			setFetchModelsErrorByProvider((prev) => ({
+				...prev,
+				[providerName]: t("config.missingBaseUrlApiKey"),
+			}));
 			return;
 		}
 		setFetchingProvider(providerName);
-		setError(null);
+		setFetchModelsErrorByProvider((prev) => ({
+			...prev,
+			[providerName]: undefined,
+		}));
 		try {
 			const result = await api.config.fetchModels(
 				provider.baseUrl,
@@ -459,14 +469,24 @@ function ConfigModalContent(props: ConfigModalProps) {
 					...prev,
 					[providerName]: result.models!,
 				}));
+				setFetchModelsErrorByProvider((prev) => ({
+					...prev,
+					[providerName]: undefined,
+				}));
 				showToast(t("config.fetchedModels", { count: result.models.length }));
 			} else {
 				// 根据 API 类型提供不同的错误提示
 				const apiTypeHint = getFetchModelsHintByApi(provider.api as string | undefined, provider.baseUrl);
-				setError((result.error ?? t("config.fetchModelsFailed")) + "\n" + apiTypeHint);
+				setFetchModelsErrorByProvider((prev) => ({
+					...prev,
+					[providerName]: (result.error ?? t("config.fetchModelsFailed")) + "\n" + apiTypeHint,
+				}));
 			}
 		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
+			setFetchModelsErrorByProvider((prev) => ({
+				...prev,
+				[providerName]: e instanceof Error ? e.message : String(e),
+			}));
 		} finally {
 			setFetchingProvider(null);
 		}
@@ -920,6 +940,7 @@ function ConfigModalContent(props: ConfigModalProps) {
 							renameValue={renameValue}
 							fetchingProvider={fetchingProvider}
 							fetchedModels={fetchedModels}
+							fetchModelsErrorByProvider={fetchModelsErrorByProvider}
 							testingProvider={testingProvider}
 							testResult={testResult}
 							testModelIdByProvider={testModelIdByProvider}

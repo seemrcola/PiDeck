@@ -246,60 +246,62 @@ export class ConfigManager {
 	// ── 远程拉取模型列表 ─────────────────────────────────
 
 	/**
-	 * 向 OpenAI 兼容的 /models 端点拉取可用模型列表。
-	 * 使用 Authorization: Bearer <apiKey> 认证。
-	 * 返回 { id, name? } 数组，或失败时返回 error。
+	 * 向 provider 拉取可用模型列表。
+	 * 对优先路径尝试失败后自动回退到备选路径，提升对各厂商端点格式差异的容错。
 	 */
 	async fetchProviderModels(
 		baseUrl: string,
 		apiKey: string,
 		apiType?: string,
 	): Promise<{ success: boolean; models?: Array<{ id: string; name?: string }>; error?: string }> {
-		const request = this.buildModelsRequest(baseUrl, apiKey, apiType);
-		try {
-			const controller = new AbortController();
-			// 10 秒超时，避免网络不通时长时间卡住
-			const timeout = setTimeout(() => controller.abort(), 10_000);
+		const requests = this.buildModelsRequest(baseUrl, apiKey, apiType);
+		let lastError: string | undefined;
 
+		for (const request of requests) {
 			try {
-				// 桌面端配置检测属于 Electron 主进程自身请求；使用 net.fetch 才能走 defaultSession 的代理配置。
-				const res = await net.fetch(request.url, {
-					method: request.method ?? "GET",
-					headers: request.headers,
-					signal: controller.signal,
-				});
+				const controller = new AbortController();
+				// 10 秒超时，避免网络不通时长时间卡住
+				const timeout = setTimeout(() => controller.abort(), 10_000);
 
-				if (!res.ok) {
-					return {
-						success: false,
-						error: `HTTP ${res.status}: ${res.statusText}`,
-					};
+				try {
+					// 桌面端配置检测属于 Electron 主进程自身请求；使用 net.fetch 才能走 defaultSession 的代理配置。
+					const res = await net.fetch(request.url, {
+						method: request.method ?? "GET",
+						headers: request.headers,
+						signal: controller.signal,
+					});
+
+					if (!res.ok) {
+						lastError = `HTTP ${res.status}: ${res.statusText}`;
+						continue;
+					}
+
+					const body = (await res.json()) as Record<string, unknown>;
+					const models = this.parseModelsResponse(body, apiType);
+
+					if (models.length === 0) {
+						lastError = "接口返回了空的模型列表";
+						continue;
+					}
+
+					return { success: true, models };
+				} finally {
+					clearTimeout(timeout);
 				}
-
-				const body = (await res.json()) as Record<string, unknown>;
-				const models = this.parseModelsResponse(body, apiType);
-
-				if (models.length === 0) {
-					return {
-						success: false,
-						error: "接口返回了空的模型列表",
-					};
-				}
-
-				return { success: true, models };
-			} finally {
-				clearTimeout(timeout);
+			} catch (e) {
+				const msg =
+					e instanceof Error
+						? e.name === "AbortError"
+							? "请求超时，请检查网络或 baseUrl"
+							: e.message
+						: String(e);
+				lastError = this.redactSecret(msg, apiKey);
 			}
-		} catch (e) {
-			const msg =
-				e instanceof Error
-					? e.name === "AbortError"
-						? "请求超时，请检查网络或 baseUrl"
-						: e.message
-					: String(e);
-			return { success: false, error: this.redactSecret(msg, apiKey) };
 		}
+
+		return { success: false, error: lastError ?? "获取模型列表失败" };
 	}
+
 
 	// ── 快速测试连接 ─────────────────────────────────────
 
@@ -308,19 +310,15 @@ export class ConfigManager {
 	 * 返回测试结果，包含模型名、响应摘要、token 用量和延迟。
 	 */
 	/**
-	 * 根据 API 类型构造测试请求的 URL、headers 和 body。
-	 * 支持的 api 类型：openai-completions, openai-responses, anthropic-messages, google-generative-ai。
-	 * 历史别名 openai-chat-completions 会归一为 pi 官方的 openai-completions。
-	 */
-	/**
-	 * 根据 API 类型构造获取模型列表请求的 URL、headers。
+	 * 根据 API 类型构造获取模型列表的 URL 列表（含优先路径和回退路径）。
+	 * fetchProviderModels 会逐条尝试直到成功或全部失败。
 	 *
 	 * 各厂商 /models 端点格式差异较大。
 	 * 自动补齐常见路径段有助于降低用户配置门槛。
 	 *
 	 * OpenAI:
-	 *   baseUrl=https://api.openai.com → /v1/models
-	 *   baseUrl=https://api.openai.com/v1 → /v1/models
+	 *   baseUrl=https://api.openai.com → [/v1/models, /models]
+	 *   baseUrl=https://api.openai.com/v1 → [/v1/models, /models]
 	 *
 	 * Anthropic:
 	 *   baseUrl=https://api.anthropic.com → /models（不在 v1 下）
@@ -331,15 +329,14 @@ export class ConfigManager {
 	 *   baseUrl=https://generativelanguage.googleapis.com/v1beta → /v1beta/models?key=xxx
 	 *
 	 * Mistral + OpenAI 兼容（默认）:
-	 *   baseUrl=https://api.mistral.ai → /v1/models
-	 *   baseUrl=http://localhost:11434 → /v1/models
-	 *   baseUrl=http://localhost:11434/v1 → /v1/models（已有路径不重复追加）
+	 *   baseUrl=https://api.mistral.ai → [/v1/models, /models]
+	 *   baseUrl=http://localhost:11434/v1 → [/v1/models, /models]
 	 */
 	private buildModelsRequest(
 		baseUrl: string,
 		apiKey: string,
 		apiType?: string,
-	): TestRequest {
+	): TestRequest[] {
 		const api = this.normalizeApiType(apiType);
 
 		if (api === "google-generative-ai") {
@@ -347,38 +344,57 @@ export class ConfigManager {
 			const u = baseUrl.replace(/\/+$/, "");
 			const needsPrefix = !/[\/]v\d+(alpha|beta)?$/.test(u);
 			const versioned = needsPrefix ? `${u}/v1beta` : u;
-			return {
+			return [{
 				url: `${versioned}/models?key=${encodeURIComponent(apiKey)}`,
 				headers: { "Content-Type": "application/json" },
-			};
+			}];
 		}
 
 		if (api === "anthropic-messages") {
 			// Anthropic 的 /models 端点不在 v1 下，而是在根路径
 			// https://api.anthropic.com/models
 			const u = baseUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
-			return {
+			return [{
 				url: `${u}/models`,
 				headers: this.withAnthropicSdkUserAgent({
 					"x-api-key": apiKey,
 					"anthropic-version": "2023-06-01",
 					"Content-Type": "application/json",
 				}),
-			};
+			}];
 		}
 
 		// OpenAI 兼容 API（Chat Completions / Responses / Mistral）：
-		// models 端点在 /v1/models 下
-		let u = this.ensureVersionPath(baseUrl);
+		// 优先尝试 ensureVersionPath 补齐后的路径，再回退到原始 baseUrl + /models
+		const headers = this.withOpenAiSdkUserAgent({
+			Authorization: `Bearer ${apiKey}`,
+			"Content-Type": "application/json",
+		});
+		const u = baseUrl.replace(/\/+$/, "");
+		const primaryUrl = `${this.ensureVersionPath(baseUrl)}/models`;
+		const fallbackUrl = `${u}/models`;
 
-		return {
-			url: `${u}/models`,
-			headers: this.withOpenAiSdkUserAgent({
+		return primaryUrl === fallbackUrl
+			? [{ url: primaryUrl, headers }]
+			: [
+				{ url: primaryUrl, headers },
+				{ url: fallbackUrl, headers },
+			];
+	}
 				Authorization: `Bearer ${apiKey}`,
 				"Content-Type": "application/json",
-			}),
-		};
-	}
+			});
+			const primaryUrl = /\/v1$/i.test(u) ? `${u}/models` : `${u}/v1/models`;
+			const fallbackUrl = `${u}/models`;
+
+			return primaryUrl === fallbackUrl
+				? [{ url: primaryUrl, headers }]
+				: [
+					{ url: primaryUrl, headers },
+					{ url: fallbackUrl, headers },
+				];
+		}
+
 
 	private parseModelsResponse(
 		body: Record<string, unknown>,
