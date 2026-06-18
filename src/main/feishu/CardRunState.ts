@@ -117,11 +117,7 @@ export function reduceFromPiEvent(state: RunState, event: Record<string, unknown
 				"agent", "agent 启动", "done",
 			);
 
-		case "turn_start": {
-			// 内部计数：统计已有轮次数 + 1
-			const turnCount = state.trail.filter((t) => t.type === "agent" && t.text.includes("轮对话")).length + 1;
-			return addTrail(state, "agent", `第 ${turnCount} 轮对话`, "running");
-		}
+		// turn_start 已移除，轮次信息对用户感知价值不大，且计数容易不准
 
 		case "message_start": {
 			const msg = event.message as Record<string, unknown> | undefined;

@@ -1,7 +1,8 @@
 /**
- * ImTab — IM 连接配置选项卡
+ * ImTab — 外部链接配置选项卡
  *
- * 在设置弹窗中集中管理飞书 Bot 配置，含二维码生成。
+ * 在配置弹窗中集中管理外部 IM/Bot 连接（当前支持飞书/Lark）。
+ * 样式统一使用配置页的设计 tokens。
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -11,10 +12,67 @@ import type {
 	FeishuChatBinding,
 	FeishuTestResult,
 } from "../../../shared/types";
+import { t } from "../i18n";
 
 type Props = {
 	onSave?: () => void;
 };
+
+const SCOPES_JSON = `{
+  "scopes": {
+    "tenant": [
+      "application:application:self_manage",
+      "application:bot.basic_info:read",
+      "application:bot.menu:write",
+      "cardkit:card:read",
+      "cardkit:card:write",
+      "contact:contact.base:readonly",
+      "docs:document.comment:create",
+      "docs:document.comment:delete",
+      "docs:document.comment:read",
+      "docs:document.comment:update",
+      "docs:document.comment:write_only",
+      "docx:document.block:convert",
+      "docx:document:readonly",
+      "docx:document:write_only",
+      "drive:drive.metadata:readonly",
+      "im:chat.members:bot_access",
+      "im:chat:create",
+      "im:chat:read",
+      "im:chat:update",
+      "im:message.group_at_msg.include_bot:readonly",
+      "im:message.group_at_msg:readonly",
+      "im:message.group_msg",
+      "im:message.p2p_msg:readonly",
+      "im:message.pins:read",
+      "im:message.pins:write_only",
+      "im:message.reactions:read",
+      "im:message.reactions:write_only",
+      "im:message:readonly",
+      "im:message:send_as_bot",
+      "im:message:send_multi_users",
+      "im:message:send_sys_msg",
+      "im:message:update",
+      "im:resource",
+      "wiki:node:read"
+    ],
+    "user": [
+      "offline_access"
+    ]
+  }
+}`;
+
+const EVENTS_JSON = `[
+  "im.chat.member.bot.added_v1",
+  "im.chat.member.bot.deleted_v1",
+  "im.message.reaction.created_v1",
+  "im.message.reaction.deleted_v1",
+  "im.message.receive_v1",
+  "drive.notice.comment_add_v1",
+  "vc.meeting.participant_meeting_ended_v1",
+  "vc.note.generated_v1",
+  "minutes.minute.generated_v1"
+]`;
 
 type FeishuApiRaw = {
 	botsList?: () => Promise<FeishuBotConfig[]>;
@@ -28,6 +86,7 @@ type FeishuApiRaw = {
 	botRemove?: (botId: string) => Promise<boolean>;
 	testConnection?: (appId: string, appSecret: string) => Promise<FeishuTestResult>;
 	bindingRemove?: (chatId: string) => Promise<boolean>;
+	botConfig?: (botId: string, patch: Partial<FeishuBotConfig>) => Promise<FeishuBotConfig | undefined>;
 };
 
 export function ImTab(_props: Props) {
@@ -37,6 +96,8 @@ export function ImTab(_props: Props) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [showAddForm, setShowAddForm] = useState(false);
+	const [visibleBots, setVisibleBots] = useState(5);
+	const [visibleBindings, setVisibleBindings] = useState(5);
 	const [appId, setAppId] = useState("");
 	const [appSecret, setAppSecret] = useState("");
 	const [botName, setBotName] = useState("");
@@ -46,6 +107,10 @@ export function ImTab(_props: Props) {
 	const [connecting, setConnecting] = useState(false);
 	const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
 	const [expandedBotId, setExpandedBotId] = useState<string | null>(null);
+	const [editingOpenIdBotId, setEditingOpenIdBotId] = useState<string | null>(null);
+	const [editOpenIdValue, setEditOpenIdValue] = useState("");
+	const [copiedScope, setCopiedScope] = useState(false);
+	const [copiedEvents, setCopiedEvents] = useState(false);
 
 	const api = (window as unknown as { piDesktop?: { feishu?: FeishuApiRaw } }).piDesktop?.feishu;
 
@@ -99,7 +164,7 @@ export function ImTab(_props: Props) {
 			const result = await api.botAdd!({
 				appId: appId.trim(),
 				appSecret: appSecret.trim(),
-				name: botName.trim() || "飞书机器人",
+				name: botName.trim() || t("config.im.botDefaultName"),
 			});
 			if (result.success) {
 				setAppId("");
@@ -109,7 +174,7 @@ export function ImTab(_props: Props) {
 				setTestResult(null);
 				await loadData();
 			} else {
-				setError(result.error ?? "添加失败");
+				setError(result.error ?? t("config.im.addFailed"));
 			}
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
@@ -138,12 +203,12 @@ export function ImTab(_props: Props) {
 		if (!api) return;
 		await api.disconnect!();
 		await loadData();
-		setConnectionMessage("已断开");
+		setConnectionMessage(t("config.im.disconnected"));
 	}, [api, loadData]);
 
 	const handleRemoveBot = useCallback(async (botId: string) => {
 		if (!api) return;
-		if (!window.confirm("确定要删除该 Bot 配置吗？")) return;
+		if (!window.confirm(t("config.im.confirmDeleteBot"))) return;
 		await api.botRemove!(botId);
 		await loadData();
 	}, [api, loadData]);
@@ -154,316 +219,335 @@ export function ImTab(_props: Props) {
 		await loadData();
 	}, [api, loadData]);
 
+	const handleEditOpenId = useCallback(async (botId: string) => {
+		if (!api) return;
+		await api.botConfig!(botId, { defaultUserOpenId: editOpenIdValue.trim() || undefined });
+		setEditingOpenIdBotId(null);
+		await loadData();
+	}, [api, editOpenIdValue, loadData]);
+
 	const isConnected = status.status === "connected";
-
-	const statusColors: Record<string, string> = {
-		connected: "#00c864",
-		connecting: "#ffa726",
-		disconnected: "#888",
-		error: "#ff4d4d",
-	};
-
-	const statusLabels: Record<string, string> = {
-		connected: "已连接",
-		connecting: "连接中",
-		disconnected: "未连接",
-		error: "错误",
-	};
+	const statusLabel = t(`config.im.status.${status.status}` as any) || status.status;
 
 	if (loading) {
-		return <div style={{ padding: 40, textAlign: "center", color: "#888" }}>加载中...</div>;
+		return <div className="config-loading">{t("common.loading")}</div>;
 	}
 
 	return (
-		<div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "8px 0" }}>
-			{/* 连接状态 */}
-			<div style={{
-				display: "flex",
-				alignItems: "center",
-				gap: 12,
-				padding: "12px 16px",
-				background: "var(--bg-secondary, #1a1a2e)",
-				borderRadius: 8,
-			}}>
-				<span style={{
-					width: 10,
-					height: 10,
-					borderRadius: "50%",
-					background: statusColors[status.status] || "#888",
-					display: "inline-block",
-					flexShrink: 0,
-				}} />
-				<div style={{ flex: 1 }}>
-					<div style={{ fontWeight: 600, color: "var(--text-primary, #e0e0e0)" }}>
-						飞书连接状态: {statusLabels[status.status] || status.status}
+		<div className="config-im-tab">
+			{/* ── 连接状态 ── */}
+			<div className="config-im-status-bar">
+				<span className={`config-im-status-dot ${status.status}`} />
+				<div className="config-im-status-info">
+					<div className="config-im-status-title">
+						{t("config.im.connectionStatus")}: {statusLabel}
 					</div>
-					{status.errorMessage && (
-						<div style={{ color: "#ff4d4d", fontSize: 12, marginTop: 2 }}>
-							{status.errorMessage}
+					{status.activeBindings > 0 && (
+						<div className="config-im-status-meta">
+							{t("config.im.activeBindings", { count: status.activeBindings })}
 						</div>
 					)}
+					{status.errorMessage && (
+						<div className="config-im-status-error">{status.errorMessage}</div>
+					)}
 				</div>
-				<div style={{ display: "flex", gap: 8 }}>
+				<div className="config-im-status-actions">
 					{isConnected ? (
-						<button className="config-btn" onClick={handleDisconnect} style={{ fontSize: 12 }}>
-							⏹ 断开
+						<button className="config-btn" onClick={handleDisconnect}>
+							{t("config.im.disconnect")}
 						</button>
 					) : (
 						<button
 							className="config-btn primary"
 							onClick={handleConnect}
 							disabled={connecting || bots.length === 0}
-							style={{ fontSize: 12 }}
 						>
-							{connecting ? "连接中..." : "🔗 连接"}
+							{connecting ? t("config.im.connecting") : t("config.im.connect")}
 						</button>
 					)}
 				</div>
 			</div>
 
 			{connectionMessage && (
-				<div style={{
-					padding: "8px 12px",
-					borderRadius: 6,
-					background: connectionMessage.includes("成功") ? "rgba(0, 200, 100, 0.1)" : "rgba(255, 150, 50, 0.1)",
-					color: connectionMessage.includes("成功") ? "#00c864" : "#ff9632",
-					fontSize: 13,
-				}}>
+				<div className={`config-im-message ${connectionMessage.includes(t("config.im.success")) ? "success" : "warn"}`}>
 					{connectionMessage}
 				</div>
 			)}
 
 			{error && (
-				<div style={{
-					padding: "8px 12px",
-					borderRadius: 6,
-					background: "rgba(255, 77, 77, 0.1)",
-					color: "#ff4d4d",
-					fontSize: 13,
-				}}>
-					{error}
-					<button onClick={() => setError(null)} style={{ marginLeft: 8, background: "none", border: "none", color: "#ff4d4d", cursor: "pointer" }}>✕</button>
+				<div className="config-im-error">
+					<span>{error}</span>
+					<button className="config-icon-btn" onClick={() => setError(null)}>×</button>
 				</div>
 			)}
 
-			{/* Bot 管理 */}
-			<div>
-				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-					<h3 style={{ margin: 0, fontSize: 15, color: "var(--text-primary, #e0e0e0)" }}>
-						🤖 Bot 配置 ({bots.length})
-					</h3>
-					<button
-						className="config-btn primary"
-						onClick={() => { setShowAddForm((v) => !v); setTestResult(null); setAppId(""); setAppSecret(""); setBotName(""); }}
-						style={{ fontSize: 12 }}
-					>
-						{showAddForm ? "取消" : "+ 添加 Bot"}
-					</button>
+			{/* ── Bot 配置管理 ── */}
+			<div className="config-section">
+				<div className="config-toolbar">
+					<span className="config-count">{t("config.im.botConfig", { count: bots.length })}</span>
+					<div className="config-toolbar-actions">
+						<button
+							className="config-btn primary"
+							onClick={() => { setShowAddForm((v) => !v); setTestResult(null); setAppId(""); setAppSecret(""); setBotName(""); }}
+						>
+							{showAddForm ? t("common.cancel") : `+ ${t("config.im.addBot")}`}
+						</button>
+					</div>
 				</div>
 
 				{showAddForm && (
-					<div style={{
-						padding: 16,
-						background: "var(--bg-secondary, #1a1a2e)",
-						borderRadius: 8,
-						marginBottom: 12,
-						display: "flex",
-						flexDirection: "column",
-						gap: 12,
-					}}>
-						<div>
-							<label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4, color: "var(--text-primary, #e0e0e0)" }}>
-								App ID
-							</label>
+					<div className="config-im-form">
+						<div className="config-field">
+							<label>{t("config.im.appId")}</label>
 							<input
 								type="text"
 								value={appId}
 								onChange={(e) => { setAppId(e.target.value); setTestResult(null); }}
 								placeholder="cli_xxxxxxxxxxxx"
-								style={{ width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color, #333)", background: "var(--bg-primary, #0d0d1a)", color: "var(--text-primary, #e0e0e0)", fontSize: 13 }}
+								className="config-input"
 							/>
 						</div>
-						<div>
-							<label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4, color: "var(--text-primary, #e0e0e0)" }}>
-								App Secret
-							</label>
+						<div className="config-field">
+							<label>{t("config.im.appSecret")}</label>
 							<input
 								type="password"
 								value={appSecret}
 								onChange={(e) => { setAppSecret(e.target.value); setTestResult(null); }}
 								placeholder="••••••••••••••••"
-								style={{ width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color, #333)", background: "var(--bg-primary, #0d0d1a)", color: "var(--text-primary, #e0e0e0)", fontSize: 13 }}
+								className="config-input"
 							/>
 						</div>
-						<div>
-							<label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 4, color: "var(--text-primary, #e0e0e0)" }}>
-								Bot 名称 <span style={{ fontWeight: 400, color: "#888" }}>(可选)</span>
-							</label>
+						<div className="config-field">
+							<label>{t("config.im.botName")} <span className="config-field-optional">({t("common.optional")})</span></label>
 							<input
 								type="text"
 								value={botName}
 								onChange={(e) => setBotName(e.target.value)}
-								placeholder="我的飞书助手"
-								style={{ width: "100%", padding: "6px 10px", borderRadius: 4, border: "1px solid var(--border-color, #333)", background: "var(--bg-primary, #0d0d1a)", color: "var(--text-primary, #e0e0e0)", fontSize: 13 }}
+								placeholder={t("config.im.botNamePlaceholder")}
+								className="config-input"
 							/>
 						</div>
 
 						{testResult && (
-							<div style={{
-								padding: "8px 12px",
-								borderRadius: 4,
-								background: testResult.success ? "rgba(0, 200, 100, 0.1)" : "rgba(255, 150, 50, 0.1)",
-								color: testResult.success ? "#00c864" : "#ff9632",
-								fontSize: 13,
-							}}>
+							<div className={`config-im-test-result ${testResult.success ? "success" : "warn"}`}>
 								{testResult.success ? "✅ " : "⚠️ "}{testResult.message}
 							</div>
 						)}
 
-						<div style={{ display: "flex", gap: 8 }}>
+						<div className="config-im-form-actions">
 							<button
 								className="config-btn"
 								onClick={handleTest}
 								disabled={testing || !appId.trim() || !appSecret.trim()}
-								style={{ fontSize: 12 }}
 							>
-								{testing ? "测试中..." : "🔍 测试连接"}
+								{testing ? t("config.im.testing") : t("config.im.testConnection")}
 							</button>
 							<button
 								className="config-btn primary"
 								onClick={handleAddBot}
 								disabled={adding || !appId.trim() || !appSecret.trim()}
-								style={{ fontSize: 12 }}
 							>
-								{adding ? "添加中..." : "✅ 保存"}
+								{adding ? t("config.im.saving") : t("common.save")}
 							</button>
 						</div>
 
-						<div style={{ fontSize: 11, color: "#888", lineHeight: 1.6 }}>
-							<p style={{ margin: "4px 0" }}>
-								💡 在 <a href="https://open.feishu.cn/app" target="_blank" style={{ color: "#4fc3f7" }}>飞书开放平台</a> 创建企业自建应用，获取 App ID 和 App Secret。
-							</p>
+						<div className="config-im-form-hint">
+							<p>{t("config.im.feishuGuideHint")} <a href="https://open.feishu.cn/app" target="_blank" rel="noreferrer">{t("config.im.feishuOpenPlatform")}</a></p>
 						</div>
 					</div>
 				)}
 
 				{bots.length === 0 && !showAddForm && (
-					<div style={{ padding: 24, textAlign: "center", color: "#888", fontSize: 13 }}>
-						暂无 Bot 配置，点击上方按钮添加。
-					</div>
+					<div className="config-empty">{t("config.im.noBotConfig")}</div>
 				)}
-				{bots.map((bot) => (
-					<div key={bot.id} style={{
-						padding: "12px 14px",
-						background: "var(--bg-secondary, #1a1a2e)",
-						borderRadius: 8,
-						marginBottom: 8,
-					}}>
-						<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-							<div>
-								<div style={{ fontWeight: 600, color: "var(--text-primary, #e0e0e0)", fontSize: 14 }}>
-									{bot.name}
-								</div>
-								<div style={{ color: "#888", fontSize: 12 }}>
+
+				{bots.slice(0, visibleBots).map((bot) => (
+					<div key={bot.id} className="config-card">
+						<div className="config-card-header">
+							<div className="config-card-info">
+								<div className="config-card-name">{bot.name}</div>
+								<div className="config-card-meta">
 									App ID: {bot.appId.slice(0, 14)}...
 								</div>
 							</div>
-							<div style={{ display: "flex", gap: 6 }}>
+							<div className="config-card-actions">
 								<button
 									className="config-btn"
 									onClick={() => setExpandedBotId(expandedBotId === bot.id ? null : bot.id)}
-									style={{ fontSize: 11 }}
 								>
-									{expandedBotId === bot.id ? "收起" : "详情"}
+									{expandedBotId === bot.id ? t("common.collapse") : t("common.details")}
 								</button>
 								<button
-									className="config-btn"
+									className="config-btn danger-fill"
 									onClick={() => handleRemoveBot(bot.id)}
-									style={{ fontSize: 11, color: "#ff4d4d" }}
 								>
-									🗑
+									{t("common.delete")}
 								</button>
 							</div>
 						</div>
 						{expandedBotId === bot.id && (
-							<div style={{ marginTop: 10, padding: "10px 0", borderTop: "1px solid var(--border-color, #333)", fontSize: 12, color: "#999" }}>
-								<div>Bot ID: {bot.id}</div>
-								<div>状态: {bot.enabled ? "✅ 启用" : "❌ 禁用"}</div>
-								{bot.defaultWorkspaceId && <div>默认工作区: {bot.defaultWorkspaceId}</div>}
-								{bot.defaultModelId && <div>默认模型: {bot.defaultModelId}</div>}
+							<div className="config-card-details">
+								<div className="config-detail-row">
+									<span className="config-detail-label">{t("config.im.botId")}</span>
+									<span className="config-detail-value">{bot.id}</span>
+								</div>
+								<div className="config-detail-row">
+									<span className="config-detail-label">{t("config.im.status")}</span>
+									<span className="config-detail-value">{bot.enabled ? "✅ " + t("common.enabled") : "❌ " + t("common.disabled")}</span>
+								</div>
+								{/* Open ID 配置 */}
+								<div className="config-detail-row">
+									<span className="config-detail-label">{t("config.im.openId")}</span>
+									<div className="config-detail-value" style={{ flex: 1 }}>
+										{editingOpenIdBotId === bot.id ? (
+												<div className="config-im-openid-edit">
+												<input
+													type="text"
+													value={editOpenIdValue}
+													onChange={(e) => setEditOpenIdValue(e.target.value)}
+													placeholder="ou_xxxxxxxxxxxx"
+													className="config-input config-input-xs"
+												/>
+												<button className="config-btn primary small" onClick={() => handleEditOpenId(bot.id)}>{t("common.save")}</button>
+												<button className="config-btn small" onClick={() => setEditingOpenIdBotId(null)}>{t("common.cancel")}</button>
+											</div>
+										) : (
+											<span>
+												{bot.defaultUserOpenId ? (
+													<code>{bot.defaultUserOpenId.slice(0, 20)}…</code>
+												) : (
+													<span className="config-im-openid-empty">{t("config.im.openIdEmpty")}</span>
+												)}
+												<button
+													className="config-btn small"
+													onClick={() => { setEditingOpenIdBotId(bot.id); setEditOpenIdValue(bot.defaultUserOpenId || ""); }}
+													style={{ marginLeft: 8 }}
+												>
+													{t("common.edit")}
+												</button>
+											</span>
+										)}
+									</div>
+								</div>
+								{bot.defaultWorkspaceId && (
+									<div className="config-detail-row">
+										<span className="config-detail-label">{t("config.im.defaultWorkspace")}</span>
+										<span className="config-detail-value">{bot.defaultWorkspaceId}</span>
+									</div>
+								)}
+								{bot.defaultModelId && (
+									<div className="config-detail-row">
+										<span className="config-detail-label">{t("config.im.defaultModel")}</span>
+										<span className="config-detail-value">{bot.defaultModelId}</span>
+									</div>
+								)}
 							</div>
 						)}
 					</div>
 				))}
-			</div>
-
-			{/* 聊天绑定 */}
-			<div>
-				<h3 style={{ margin: "0 0 12px 0", fontSize: 15, color: "var(--text-primary, #e0e0e0)" }}>
-					💬 活跃聊天绑定 ({bindings.length})
-				</h3>
-				{bindings.length === 0 ? (
-					<div style={{ padding: 16, textAlign: "center", color: "#888", fontSize: 13 }}>
-						暂无活跃绑定。连接飞书后发送消息即可自动创建绑定。
-					</div>
-				) : (
-					bindings.map((binding) => (
-						<div key={binding.chatId} style={{
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "space-between",
-							padding: "8px 12px",
-							background: "var(--bg-secondary, #1a1a2e)",
-							borderRadius: 6,
-							marginBottom: 4,
-							fontSize: 12,
-						}}>
-							<div>
-								<span style={{ color: "var(--text-primary, #e0e0e0)" }}>
-									{binding.chatType === "p2p" ? "💬" : "👥"} {binding.groupName || binding.chatId.slice(0, 10)}
-								</span>
-								<div style={{ color: "#888", fontSize: 10 }}>
-									会话: {binding.sessionId.slice(0, 8)} | {new Date(binding.createdAt).toLocaleString()}
-								</div>
-							</div>
-							<button
-								onClick={() => handleRemoveBinding(binding.chatId)}
-								style={{
-									background: "none",
-									border: "none",
-									color: "#ff4d4d",
-									cursor: "pointer",
-									fontSize: 14,
-									padding: "2px 6px",
-								}}
-								title="解除绑定"
-							>
-								✕
-							</button>
-						</div>
-					))
+				{bots.length > visibleBots && (
+					<button className="config-btn small" style={{ marginTop: 4 }} onClick={() => setVisibleBots((v) => Math.min(v + 5, bots.length))}>
+						{t("common.showMore")} ({bots.length - visibleBots})
+					</button>
 				)}
 			</div>
 
+			{/* ── 聊天绑定 ── */}
+			<div className="config-section">
+				<div className="config-toolbar">
+					<span className="config-count">{t("config.im.chatBindings", { count: bindings.length })}</span>
+				</div>
 
+				{bindings.length === 0 ? (
+					<div className="config-empty">{t("config.im.noBindings")}</div>
+				) : (
+					<>
+						{bindings.slice(0, visibleBindings).map((binding) => (
+							<div key={binding.chatId} className="config-card config-binding-card">
+								<div className="config-card-header">
+									<div className="config-card-info">
+										<div className="config-card-name">
+											{binding.chatType === "p2p" ? "💬" : "👥"} {binding.groupName || binding.chatId.slice(0, 10)}
+										</div>
+										<div className="config-card-meta">
+											{t("config.im.session")}: {binding.sessionId.slice(0, 8)} | {new Date(binding.createdAt).toLocaleString()}
+										</div>
+									</div>
+									<div className="config-card-actions">
+										<button
+											className="config-btn danger-fill"
+											onClick={() => handleRemoveBinding(binding.chatId)}
+										>
+											{t("common.delete")}
+										</button>
+									</div>
+								</div>
+							</div>
+						))}
+						{bindings.length > visibleBindings && (
+							<button className="config-btn small" style={{ marginTop: 4 }} onClick={() => setVisibleBindings((v) => Math.min(v + 5, bindings.length))}>
+								{t("common.showMore")} ({bindings.length - visibleBindings})
+							</button>
+						)}
+					</>
+				)}
+			</div>
 
-			{/* 帮助信息 */}
-			<details style={{ fontSize: 12, color: "#888" }}>
-				<summary style={{ cursor: "pointer", marginBottom: 8 }}>📋 配置指南</summary>
-				<div style={{ lineHeight: 1.8, paddingLeft: 16 }}>
-					<p>1. 打开 <a href="https://open.feishu.cn/app" target="_blank" style={{ color: "#4fc3f7" }}>飞书开放平台</a></p>
-					<p>2. 创建「企业自建应用」</p>
-					<p>3. 在 <strong>凭证与基础信息</strong> 中获取 App ID 和 App Secret</p>
-					<p>4. 在 <strong>权限管理</strong> 中开启：</p>
-					<ul style={{ margin: "4px 0", paddingLeft: 20 }}>
-						<li>im:message — 获取消息</li>
-						<li>im:message:send_as_bot — 发送消息</li>
-						<li>im:chat — 获取群聊信息</li>
-						<li>im:resource — 下载文件/图片</li>
-					</ul>
-					<p>5. 在 <strong>事件订阅</strong> 中开启 im.message.receive_v1（WebSocket 长连接模式）</p>
-					<p>6. 创建应用版本并发布</p>
-					<p style={{ marginTop: 8 }}>详细文档：<a href="https://open.feishu.cn/document/home/index" target="_blank" style={{ color: "#4fc3f7" }}>飞书开放平台文档</a></p>
+			{/* ── 配置指南 ── */}
+			<details className="config-im-guide">
+				<summary>{t("config.im.guide")}</summary>
+				<div className="config-im-guide-content">
+					<p><strong>{t("config.im.guideMethodTitle")}</strong></p>
+
+					{/* 方式一：智能体（推荐） */}
+					<p><strong>{t("config.im.guideMethodA")}</strong></p>
+					<p style={{ fontSize: "var(--font-size-micro)", color: "var(--color-text-tertiary)" }}>{t("config.im.guideMethodADesc")}</p>
+					<ol>
+						<li>{t("config.im.guideMethodAStep1a")}<br /><a href="https://open.feishu.cn/app" target="_blank" rel="noreferrer" style={{ whiteSpace: "nowrap" }}>https://open.feishu.cn/app</a> → {t("config.im.guideMethodAStep1b")}</li>
+						<li>{t("config.im.guideMethodAStep2")}</li>
+						<li>{t("config.im.guideMethodAStep3")}</li>
+						<li>{t("config.im.guideMethodAStep4")}</li>
+					</ol>
+
+					{/* 方式二：开放平台（手动） */}
+					<p style={{ marginTop: 16 }}><strong>{t("config.im.guideMethodB")}</strong></p>
+					<p style={{ fontSize: "var(--font-size-micro)", color: "var(--color-text-tertiary)" }}>{t("config.im.guideMethodBDesc")}</p>
+					<ol>
+						<li>{t("config.im.guideMethodBStep1a")}<br /><a href="https://open.feishu.cn/app" target="_blank" rel="noreferrer" style={{ whiteSpace: "nowrap" }}>https://open.feishu.cn/app</a> → {t("config.im.guideMethodBStep1b")}</li>
+						<li>{t("config.im.guideMethodBStep2")}</li>
+						<li>{t("config.im.guideMethodBStep3")}<br />
+							<ul className="config-im-guide-perms">
+								<li><code>im:message:send_as_bot</code> — {t("config.im.permSendMessage")}</li>
+								<li><code>im:message.p2p_msg:readonly</code> — {t("config.im.permGetMessageP2P")}</li>
+								<li><code>im:message.group_at_msg:readonly</code> — {t("config.im.permGetMessageGroup")}</li>
+								<li><code>im:message:update</code> — {t("config.im.permUpdateMessage")}</li>
+								<li><code>im:chat:read</code> / <code>im:chat:create</code> / <code>im:chat:update</code> — {t("config.im.permChatManage")}</li>
+								<li><code>im:resource</code> — {t("config.im.permDownload")}</li>
+								<li><code>contact:contact.base:readonly</code> — {t("config.im.permContact")}</li>
+							</ul>
+						</li>
+						<li>{t("config.im.guideMethodBStep4")}</li>
+						<li>{t("config.im.guideMethodBStep5")}</li>
+						<li>{t("config.im.guideMethodBStep6")}</li>
+						<li>{t("config.im.guideMethodAStep4")}</li>
+					</ol>
+
+					<p className="config-im-guide-note">{t("config.im.guideGroupChat")}</p>
+
+					{/* 可复制的权限和作用域 */}
+					<p style={{ marginTop: 20, fontWeight: 600 }}>{t("config.im.guideScopeTitle")}</p>
+					<p style={{ fontSize: "var(--font-size-micro)", color: "var(--color-text-tertiary)" }}>{t("config.im.guideScopeDesc")}</p>
+					<pre className="config-im-code-block">{SCOPES_JSON}</pre>
+					<button className="config-btn small" onClick={() => { navigator.clipboard.writeText(SCOPES_JSON); setCopiedScope(true); setTimeout(() => setCopiedScope(false), 2000); }}>
+						{copiedScope ? t("common.copied") : t("common.copy")}
+					</button>
+
+					<p style={{ marginTop: 20, fontWeight: 600 }}>{t("config.im.guideEventsTitle")}</p>
+					<p style={{ fontSize: "var(--font-size-micro)", color: "var(--color-text-tertiary)" }}>{t("config.im.guideEventsDesc")}</p>
+					<pre className="config-im-code-block">{EVENTS_JSON}</pre>
+					<button className="config-btn small" onClick={() => { navigator.clipboard.writeText(EVENTS_JSON); setCopiedEvents(true); setTimeout(() => setCopiedEvents(false), 2000); }}>
+						{copiedEvents ? t("common.copied") : t("common.copy")}
+					</button>
 				</div>
 			</details>
 		</div>

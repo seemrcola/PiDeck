@@ -165,7 +165,7 @@ export function ConfigModal(props: ConfigModalProps) {
 
 function ConfigModalContent(props: ConfigModalProps) {
 	const { open, onClose, onSaved } = props;
-	const [section, setSection] = useState<"config" | "skills" | "extensions">("config");
+	const [section, setSection] = useState<"config" | "skills" | "extensions" | "im">("config");
 	const [tab, setTab] = useState<ConfigTab>("models");
 	const [loading, setLoading] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -858,7 +858,6 @@ function ConfigModalContent(props: ConfigModalProps) {
 		{ id: "models", label: t("config.nav.models") },
 		{ id: "auth", label: t("config.nav.auth") },
 		{ id: "settings", label: t("config.nav.settings") },
-		{ id: "im", label: "IM 连接" },
 		{ id: "raw", label: t("config.nav.raw") },
 	];
 
@@ -916,6 +915,15 @@ function ConfigModalContent(props: ConfigModalProps) {
 								onClick={() => setSection("skills")}
 							>
 								{t("config.nav.skills")}
+							</button>
+						</div>
+						<div className="config-sidebar-group">
+							<span>{t("config.group.im")}</span>
+							<button
+								className={section === "im" ? "active" : ""}
+								onClick={() => setSection("im")}
+							>
+								{t("config.nav.im")}
 							</button>
 						</div>
 					</aside>
@@ -1025,7 +1033,7 @@ function ConfigModalContent(props: ConfigModalProps) {
 						/>
 					)}
 
-					{section === "config" && !loading && tab === "im" && (
+					{section === "im" && !loading && (
 						<ImTab />
 					)}
 

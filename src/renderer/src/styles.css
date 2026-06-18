@@ -6926,6 +6926,82 @@ body.is-composer-resizing .composer-resize-handle::after {
 	gap: 10px;
 }
 
+.config-card {
+	border: 1px solid var(--color-border-subtle);
+	border-radius: var(--radius-lg);
+	background: var(--color-bg-panel);
+	overflow: hidden;
+	transition:
+		border-color 0.15s,
+		box-shadow 0.15s,
+		background 0.15s;
+	margin-bottom: 8px;
+}
+
+.config-card-header {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	padding: 10px 14px;
+}
+
+.config-card-header:hover {
+	background: var(--color-bg-hover);
+}
+
+.config-card-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.config-card-name {
+	font-weight: 600;
+	font-size: var(--font-size-control);
+	color: var(--color-text-primary);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.config-card-meta {
+	font-size: var(--font-size-micro);
+	color: var(--color-text-tertiary);
+	margin-top: 2px;
+}
+
+.config-card-actions {
+	display: flex;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.config-card-details {
+	padding: 10px 14px;
+	border-top: 1px solid var(--color-border-subtle);
+	font-size: var(--font-size-caption);
+}
+
+.config-card-details.empty {
+	display: none;
+}
+
+.config-detail-row {
+	display: flex;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.config-detail-label {
+	color: var(--color-text-tertiary);
+	min-width: 100px;
+	flex-shrink: 0;
+}
+
+.config-detail-value {
+	color: var(--color-text-primary);
+	word-break: break-all;
+}
+
 .config-auth-card {
 	border: 1px solid var(--color-border-subtle);
 	border-radius: var(--radius-lg);
@@ -8917,4 +8993,279 @@ body.is-composer-resizing .composer-resize-handle::after {
 /* 侧边栏飞书按钮 */
 .feishu-icon.feishu-connected {
 	color: var(--color-accent);
+}
+
+/* ── 外部链接配置 Tab ────────────────────── */
+.config-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.config-im-tab {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+	padding: 8px 0;
+}
+
+/* 连接状态栏 */
+.config-im-status-bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 16px;
+	border: 1px solid var(--color-border-subtle);
+	border-radius: var(--radius-lg);
+	background: var(--color-bg-panel);
+}
+
+.config-im-status-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+.config-im-status-dot.connected {
+	background: var(--color-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+.config-im-status-dot.connecting {
+	background: var(--color-warning);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-warning) 14%, transparent);
+	animation: config-im-pulse 1.3s ease-in-out infinite;
+}
+.config-im-status-dot.disconnected {
+	background: var(--color-text-tertiary);
+}
+.config-im-status-dot.error {
+	background: var(--color-danger);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 14%, transparent);
+}
+
+@keyframes config-im-pulse {
+	0%, 100% { transform: scale(1); opacity: 1; }
+	50% { transform: scale(1.25); opacity: 0.55; }
+}
+
+.config-im-status-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.config-im-status-title {
+	font-weight: 600;
+	font-size: var(--font-size-control);
+	color: var(--color-text-primary);
+}
+
+.config-im-status-meta {
+	font-size: var(--font-size-micro);
+	color: var(--color-text-tertiary);
+	margin-top: 2px;
+}
+
+.config-im-status-error {
+	font-size: var(--font-size-caption);
+	color: var(--color-danger);
+	margin-top: 4px;
+}
+
+.config-im-status-actions {
+	display: flex;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+/* 提示消息 */
+.config-im-message {
+	padding: 8px 12px;
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-caption);
+}
+.config-im-message.success {
+	background: var(--color-accent-soft);
+	color: var(--color-accent);
+}
+.config-im-message.warn {
+	background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+	color: var(--color-warning);
+}
+
+/* 错误提示 */
+.config-im-error {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	padding: 8px 12px;
+	border-radius: var(--radius-sm);
+	background: var(--color-danger-soft);
+	color: var(--color-danger);
+	font-size: var(--font-size-caption);
+}
+
+/* 添加表单 */
+.config-im-form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid var(--color-border-subtle);
+	border-radius: var(--radius-lg);
+	background: var(--color-bg-panel);
+	margin-bottom: 12px;
+}
+
+.config-field label {
+	display: block;
+	font-size: var(--font-size-caption);
+	font-weight: 600;
+	color: var(--color-text-primary);
+	margin-bottom: 4px;
+}
+
+.config-field-optional {
+	font-weight: 400;
+	color: var(--color-text-tertiary);
+}
+
+.config-input {
+	width: 100%;
+	height: var(--control-height-md);
+	padding: 0 var(--space-3);
+	border: 1px solid var(--color-border-subtle);
+	border-radius: var(--radius-md);
+	background: var(--color-bg-muted);
+	color: var(--color-text-primary);
+	font-size: var(--font-size-control);
+	box-sizing: border-box;
+	transition:
+		border-color 0.15s,
+		box-shadow 0.15s,
+		background 0.15s;
+}
+.config-input:focus {
+	outline: none;
+	border-color: var(--color-accent);
+	box-shadow: var(--focus-ring);
+}
+.config-input::placeholder {
+	color: var(--color-text-tertiary);
+}
+
+.config-im-test-result {
+	padding: 8px 12px;
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-caption);
+}
+.config-im-test-result.success {
+	background: var(--color-accent-soft);
+	color: var(--color-accent);
+}
+.config-im-test-result.warn {
+	background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+	color: var(--color-warning);
+}
+
+.config-im-form-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.config-im-form-hint {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-tertiary);
+	line-height: 1.6;
+}
+.config-im-form-hint a {
+	color: var(--color-accent);
+	text-decoration: none;
+}
+.config-im-form-hint a:hover {
+	text-decoration: underline;
+}
+
+/* 配置指南 */
+.config-im-guide {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-tertiary);
+	max-width: 800px;
+}
+.config-im-guide summary {
+	cursor: pointer;
+	color: var(--color-text-secondary);
+	font-weight: 500;
+	margin-bottom: 8px;
+}
+.config-im-guide summary:hover {
+	color: var(--color-accent);
+}
+
+.config-im-guide-content {
+	line-height: 1.8;
+	padding-left: 16px;
+}
+.config-im-guide-content ol,
+.config-im-guide-content ul {
+	padding-left: 20px;
+	margin: 4px 0;
+}
+.config-im-guide-content a {
+	color: var(--color-accent);
+	text-decoration: none;
+}
+.config-im-guide-content a:hover {
+	text-decoration: underline;
+}
+
+.config-im-guide-perms {
+	list-style: disc;
+	margin: 4px 0;
+}
+
+.config-im-guide-doc {
+	margin-top: 8px;
+}
+
+.config-im-code-block {
+	background: var(--color-bg-muted);
+	border: 1px solid var(--color-border-subtle);
+	border-radius: var(--radius-md);
+	padding: var(--space-3);
+	overflow-x: auto;
+	font-family: var(--font-family-mono);
+	font-size: var(--font-size-micro);
+	line-height: 1.6;
+	color: var(--color-text-secondary);
+	white-space: pre;
+	max-height: 280px;
+	overflow-y: auto;
+	margin: 8px 0;
+}
+
+.config-im-guide-note {
+	margin-top: 12px;
+	padding: 8px 12px;
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+	color: var(--color-warning);
+	font-size: var(--font-size-caption);
+}
+
+.config-im-openid-empty {
+	color: var(--color-text-tertiary);
+	font-size: var(--font-size-micro);
+}
+
+.config-input-xs {
+	height: var(--control-height-xs) !important;
+	font-size: var(--font-size-micro) !important;
+	padding: 0 var(--space-2) !important;
+}
+
+.config-im-openid-edit {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	flex-wrap: wrap;
 }

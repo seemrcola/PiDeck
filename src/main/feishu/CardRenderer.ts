@@ -1,13 +1,11 @@
 /**
- * CardRenderer v4 — RunState → 飞书 interactive 卡片 JSON
+ * CardRenderer v5 — RunState → 飞书 interactive 卡片 JSON
  *
- * v4 设计原则：
- * - hr 分割线切分每个区域，层级清晰如 MD 标题
- * - 思考过程用 note 小字，和输出正文区分开
- * - 轨迹一行一条，紧凑整洁
- * - 工具调用带参数预览
- *
- * 配合 CardStream v2 的 im.v1.message.patch 实现真正流式。
+ * v5 设计简化，与 PiDeck 界面风格统一：
+ * - 无彩色 header，无 hr 分割线，干净的消息流
+ * - 活动轨迹紧凑排列，去掉标题
+ * - 思考过程用小字，工具调用简洁
+ * - 底部简单标注状态
  */
 
 import type { Block, RunState, ToolEntry, TrailEntry } from "./CardRunState";
@@ -17,7 +15,6 @@ const THINKING_MAX = 2_000;
 const TRAIL_ENTRIES_MAX = 20;
 
 export interface RenderOptions {
-	header?: string;
 	stopHint?: string;
 }
 
@@ -25,29 +22,26 @@ export function renderRunCard(state: RunState, opts: RenderOptions = {}): object
 	const elements: object[] = [];
 	const isRunning = state.terminal === "running";
 
-	// ── 1. 活动轨迹 ──
+	// ── 1. 活动轨迹（去掉标题，紧凑展示） ──
 	elements.push(renderTrail(state.trail, isRunning));
 
-	// ── 2. 思考过程（note 小字，和输出区分） ──
+	// ── 2. 思考过程 ──
 	if (state.reasoning.content) {
-		if (elements.length > 0) elements.push(hr());
 		elements.push(renderThinking(state.reasoning.content, state.reasoning.active));
 	}
 
-	// ── 3. 当前正在执行的操作 ──
+	// ── 3. 正在执行的操作 ──
 	const runningTools = state.blocks.filter(
 		(b) => b.kind === "tool" && b.tool.status === "running",
 	);
 	for (const b of runningTools) {
 		if (b.kind === "tool") {
-			if (needsSep(elements)) elements.push(hr());
 			elements.push(renderRunningTool(b.tool));
 		}
 	}
 
 	// ── 4. 输出正文 ──
 	if (state.outputText.trim()) {
-		if (needsSep(elements)) elements.push(hr());
 		elements.push(renderOutput(state.outputText, isRunning));
 	}
 
@@ -56,44 +50,28 @@ export function renderRunCard(state: RunState, opts: RenderOptions = {}): object
 		(b) => b.kind === "tool" && b.tool.status !== "running",
 	);
 	if (doneTools.length > 0) {
-		if (needsSep(elements)) elements.push(hr());
 		elements.push(renderDoneTools(doneTools));
 	}
 
 	// ── 6. 终态提示 ──
 	if (state.terminal === "interrupted") {
-		elements.push(hr());
-		elements.push(note("⏹ 已被中断"));
+		elements.push({ tag: "markdown", content: "⏹ 已被中断" });
 	} else if (state.terminal === "error" && state.errorMsg) {
-		elements.push(hr());
-		elements.push(note(`❌ 失败: ${state.errorMsg}`));
+		elements.push({ tag: "markdown", content: `❌ 失败: ${state.errorMsg}` });
 	}
 
-	// ── 7. 底部状态栏 ──
-	elements.push(hr());
+	// ── 7. 底部状态 ──
 	elements.push(renderFooter(state, isRunning, opts.stopHint));
 
-	const card: Record<string, unknown> = {
+	return {
 		config: { wide_screen_mode: true, update_multi: true },
 		elements,
 	};
-
-	if (opts.header) {
-		card.header = {
-			title: { tag: "plain_text", content: opts.header },
-			template: state.terminal === "error" ? "red"
-				: state.terminal === "interrupted" ? "grey"
-				: state.terminal === "done" ? "green"
-				: "blue",
-		};
-	}
-
-	return card;
 }
 
 // ========== 区域渲染 ==========
 
-/** 活动轨迹 — 一行一条，紧凑 */
+/** 活动轨迹 — 一行一条，去掉标题，仅保留时间线 */
 function renderTrail(trail: TrailEntry[], isRunning: boolean): object {
 	let entries = trail;
 	let hidden = 0;
@@ -103,8 +81,6 @@ function renderTrail(trail: TrailEntry[], isRunning: boolean): object {
 	}
 
 	const lines: string[] = [];
-	lines.push("**📋 活动轨迹**");
-
 	if (entries.length === 0) {
 		lines.push(isRunning ? "_等待 Agent 启动..._" : "_无记录_");
 	} else {
@@ -118,10 +94,10 @@ function renderTrail(trail: TrailEntry[], isRunning: boolean): object {
 		}
 	}
 
-	return md(lines.join("\n"));
+	return { tag: "markdown", content: lines.join("\n") };
 }
 
-/** 思考过程 — notation 小字，和正文区分层级 */
+/** 思考过程 — notation 小字 */
 function renderThinking(content: string, active: boolean): object {
 	const display = content.length > THINKING_MAX
 		? content.slice(0, THINKING_MAX) + "\n\n…（已截断）"
@@ -137,7 +113,7 @@ function renderRunningTool(tool: ToolEntry): object {
 	const lines: string[] = [];
 	lines.push(`**🔧 正在调用 \`${tool.name}\``);
 	if (preview) lines.push(`\`${preview}\``);
-	return md(lines.join("\n"));
+	return { tag: "markdown", content: lines.join("\n") };
 }
 
 /** 输出正文 */
@@ -145,8 +121,7 @@ function renderOutput(text: string, streaming: boolean): object {
 	const display = text.length > OUTPUT_MAX
 		? text.slice(0, OUTPUT_MAX) + "\n\n…（已截断）"
 		: text;
-	const marker = streaming ? " 🔵" : "";
-	return md(`**📤 输出**${marker}\n\n${display}`);
+	return { tag: "markdown", content: display };
 }
 
 /** 已完成的工具列表 */
@@ -163,7 +138,7 @@ function renderDoneTools(blocks: Block[]): object {
 		shown = tools.slice(0, MAX);
 	}
 
-	const lines: string[] = ["**🔧 已完成工具**"];
+	const lines: string[] = [];
 	for (const t of shown) {
 		const icon = t.status === "error" ? "❌" : "✅";
 		const preview = toolInputPreview(t);
@@ -172,15 +147,14 @@ function renderDoneTools(blocks: Block[]): object {
 	}
 	if (hidden > 0) lines.push(`_…还有 ${hidden} 个_`);
 
-	return md(lines.join("\n"));
+	return { tag: "markdown", content: lines.join("\n") };
 }
 
-/** 底部状态栏 */
+/** 底部状态 — 简洁一行 */
 function renderFooter(state: RunState, isRunning: boolean, stopHint?: string): object {
 	const parts: string[] = [];
 
 	if (isRunning) {
-		// 运行中：显示当前阶段
 		if (state.footer === "thinking") {
 			parts.push("🧠 思考中");
 		} else if (state.footer === "tool_running") {
@@ -197,36 +171,16 @@ function renderFooter(state: RunState, isRunning: boolean, stopHint?: string): o
 
 		if (stopHint) parts.push(stopHint);
 	} else {
-		// 完成：显示耗时
 		if (state.meta.durationMs !== undefined) {
 			parts.push(`⏱ ${(state.meta.durationMs / 1000).toFixed(1)}s`);
 		}
 		parts.push("✅ 完成");
 	}
 
-	return note(parts.join("  |  "));
+	return { tag: "note", elements: [{ tag: "plain_text", content: parts.join("  |  ") }] };
 }
 
 // ========== 工具函数 ==========
-
-function md(content: string): object {
-	return { tag: "markdown", content };
-}
-
-function note(content: string): object {
-	return { tag: "note", elements: [{ tag: "plain_text", content }] };
-}
-
-function hr(): object {
-	return { tag: "hr" };
-}
-
-/** 最后一个元素不是 hr 才需要分割线 */
-function needsSep(elements: object[]): boolean {
-	if (elements.length === 0) return false;
-	const last = elements[elements.length - 1] as Record<string, unknown>;
-	return last.tag !== "hr";
-}
 
 function toolInputPreview(tool: ToolEntry): string {
 	const input = tool.input;
