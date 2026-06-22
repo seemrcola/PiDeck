@@ -563,9 +563,9 @@ function createWindow() {
 	});
 
 	mainWindow.once("ready-to-show", () => {
-		mainWindow?.show();
-		// 窗口显示后立即最大化，提供更好的默认工作空间
+		// 先最大化再 show，避免窗口先以默认尺寸闪现再跳到最大化，导致布局变形
 		mainWindow?.maximize();
+		mainWindow?.show();
 		// 向开发者工具输出启动信息
 		printStartupInfo();
 	});
