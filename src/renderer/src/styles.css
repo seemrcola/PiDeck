@@ -3501,12 +3501,9 @@ body.is-composer-resizing .composer-resize-handle::after {
 	color: var(--color-brand-purple);
 	border: 1px solid color-mix(in srgb, var(--color-brand-purple) 28%, transparent);
 }
-/* 用户消息中的 chip 可点击，hover 显示手型光标并微亮 */
+/* 用户消息中的 chip 仅作高亮展示，不再响应点击，避免和发送后的普通文本产生割裂。 */
 .user-turn-text .input-chip {
-	cursor: pointer;
-}
-.user-turn-text .input-chip:hover {
-	filter: brightness(1.15);
+	cursor: default;
 }
 
 .composer-box:focus-within {

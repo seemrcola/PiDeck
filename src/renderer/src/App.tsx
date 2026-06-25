@@ -905,6 +905,7 @@ export function App() {
         // 首次检测延后一帧启动,先让主界面完成绘制,避免 packaged app 打开时出现几秒白屏。
         window.setTimeout(() => void checkPiInstall("startup"), 300);
       }
+      window.setTimeout(() => void checkPiCliUpdateOnStartup(), 1200);
     });
 
     // 加载历史命令
@@ -1733,6 +1734,21 @@ export function App() {
   async function installDownloadedAppUpdate() {
     if (!downloadedUpdatePath) return;
     await api.app.installUpdate(downloadedUpdatePath);
+  }
+
+  async function checkPiCliUpdateOnStartup() {
+    try {
+      const result = await api.pi.checkUpdate();
+      setPiUpdateCheck(result);
+      if (result.hasUpdate) {
+        // 启动后后台提醒即可，不阻塞主界面；低版本 pi 可能缺少新版协议/工具能力。
+        const message = t("settings.piUpdateStartupNotice");
+        setSettingsNotice(message);
+        showToast(message, 6500);
+      }
+    } catch {
+      // 后台检查失败不打扰用户；设置页仍可手动检查并看到详细错误。
+    }
   }
 
   async function checkPiCliUpdate() {

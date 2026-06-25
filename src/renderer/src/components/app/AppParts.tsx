@@ -1619,7 +1619,7 @@ export const UserBubble = memo(function UserBubble(props: {
 			{cleanText && (
 				<div className="user-turn-bubble">
 					<div className="user-turn-text">
-						{renderChipText(cleanText, props.onOpenFile)}
+						{renderChipText(cleanText)}
 					</div>
 				</div>
 			)}

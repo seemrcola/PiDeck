@@ -71,20 +71,25 @@ export function ExtensionsTab(props: {
 	onRefresh: () => void;
 	onUninstall: (extension: PiExtensionSummary) => void;
 }) {
-	const [installing, setInstalling] = useState<string | null>(null);
+	const [installingSources, setInstallingSources] = useState<Set<string>>(() => new Set());
 	const [updating, setUpdating] = useState<string | null>(null);
 	const [updateResult, setUpdateResult] = useState<PiCliUpdateResult | null>(null);
 	const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 
 	const handleInstall = async (pkg: PiPackageInfo) => {
-		setInstalling(pkg.name);
+		// 安装任务按扩展源分别记录；多个扩展并发安装时，不能用单一字符串覆盖前一个 loading 状态。
+		setInstallingSources((current) => new Set(current).add(pkg.installCmd));
 		try {
 			await api.install(pkg.installCmd);
 			props.onRefresh();
 		} catch (e) {
 			alert(t("config.installFailed") + ": " + (e instanceof Error ? e.message : String(e)));
 		} finally {
-			setInstalling(null);
+			setInstallingSources((current) => {
+				const next = new Set(current);
+				next.delete(pkg.installCmd);
+				return next;
+			});
 		}
 	};
 
@@ -152,6 +157,7 @@ export function ExtensionsTab(props: {
 				<div className="extensions-recommended-list">
 					{RECOMMENDED_PACKAGES.map((pkg) => {
 						const alreadyInstalled = props.data.extensions.some((ext) => ext.source === pkg.installCmd);
+						const installing = installingSources.has(pkg.installCmd);
 						return (
 						<div
 							key={pkg.name}
@@ -173,13 +179,13 @@ export function ExtensionsTab(props: {
 								</div>
 							</div>
 							<div className="extensions-recommended-action" onClick={(e) => e.stopPropagation()}>
-								{installing === pkg.name ? (
+								{installing ? (
 									<span className="config-btn" style={{ opacity: 0.6 }}>{t("config.installing")}</span>
 								) : (
 									<button
 										className="config-btn"
 										onClick={() => handleInstall(pkg)}
-										disabled={alreadyInstalled}
+										disabled={alreadyInstalled || installing}
 									>
 										{alreadyInstalled ? t("config.installed") : t("config.install")}
 									</button>

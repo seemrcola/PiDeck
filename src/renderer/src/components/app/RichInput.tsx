@@ -112,14 +112,16 @@ export function parseRichInputChips(text: string): RichInputChip[] {
 		if (m.index === slashRe.lastIndex) slashRe.lastIndex++;
 	}
 
-	// @path：前置行首或空白；路径内无空白无 @
+	// @path：前置行首或空白；必须像文件路径（含 /、\\ 或 .），避免普通 @mention 被误渲染成不可编辑 chip。
 	const atRe = /(^|\s)(@[^\s@]+)/g;
 	while ((m = atRe.exec(text)) !== null) {
 		const start = m.index + m[1].length;
 		const end = start + m[2].length;
 		if (!overlapsUrl(start, end, urlSpans)) {
 			const seg = m[2].slice(1);
-			const label = seg.includes("/") ? seg.slice(seg.lastIndexOf("/") + 1) : seg;
+			if (!/[\\/.]/.test(seg)) continue;
+			const normalized = seg.replace(/\\/g, "/");
+			const label = normalized.includes("/") ? normalized.slice(normalized.lastIndexOf("/") + 1) : normalized;
 			chips.push({ start, end, raw: m[2], kind: "file", label: label || seg });
 		}
 		if (m.index === atRe.lastIndex) atRe.lastIndex++;
