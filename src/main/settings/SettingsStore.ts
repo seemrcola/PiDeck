@@ -40,6 +40,7 @@ const defaultSettings: AppSettings = {
   petPatrolEnabled: true,
   // 巡游碰边后 idle 停顿默认 5 分钟
   petPatrolPauseMin: 5,
+  favoriteModels: [],
 };
 
 export class SettingsStore {

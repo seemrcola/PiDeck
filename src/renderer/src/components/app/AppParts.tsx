@@ -45,6 +45,7 @@ import {
 	UploadCloud,
 	Wrench,
 	X,
+	Star,
 } from "lucide-react";
 import { t, type TranslationKey } from "../../i18n";
 import { Button } from "../ui/Button";
@@ -494,6 +495,10 @@ export function ModelPicker(props: {
 	current?: { provider?: string; modelId?: string; modelName?: string };
 	onClose: () => void;
 	onPick: (model: AvailableModel) => void;
+	/** 收藏的模型 ID 列表，收藏的模型单独放在最上方的「★ 收藏」分区 */
+	favoriteModels: string[];
+	/** 切换收藏状态 */
+	onToggleFavorite: (modelId: string) => void;
 }) {
 	const [modelPickerSearch, setModelPickerSearch] = useState("");
 	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -501,6 +506,8 @@ export function ModelPicker(props: {
 	const currentModelKey = props.current?.provider && props.current?.modelId
 		? `${props.current.provider}/${props.current.modelId}`
 		: undefined;
+	const favoritesSet = new Set(props.favoriteModels ?? []);
+
 	// 搜索同时覆盖模型展示名、模型 id 和 provider,避免用户只记得任一字段时找不到模型。
 	const filteredModels = normalizedSearch
 		? props.models.filter((model) =>
@@ -516,9 +523,26 @@ export function ModelPicker(props: {
 					),
 			)
 		: props.models;
-	
-	// 按供应商分组
-	const groupedModels = filteredModels.reduce<Record<string, AvailableModel[]>>((groups, model) => {
+
+	// 分离收藏模型和其余模型：收藏的单独放到最上方「★ 收藏」分区
+	const favorites: AvailableModel[] = [];
+	const nonFavorites: AvailableModel[] = [];
+	for (const model of filteredModels) {
+		if (favoritesSet.has(model.id)) {
+			favorites.push(model);
+		} else {
+			nonFavorites.push(model);
+		}
+	}
+	// 收藏列表按 供应商/名称 排序
+	favorites.sort((a, b) => {
+		const ap = a.provider ?? '';
+		const bp = b.provider ?? '';
+		if (ap !== bp) return ap.localeCompare(bp);
+		return (a.name ?? a.id).localeCompare(b.name ?? b.id);
+	});
+	// 其余模型按供应商分组
+	const groupedModels = nonFavorites.reduce<Record<string, AvailableModel[]>>((groups, model) => {
 		const provider = model.provider || 'other';
 		if (!groups[provider]) {
 			groups[provider] = [];
@@ -526,7 +550,13 @@ export function ModelPicker(props: {
 		groups[provider].push(model);
 		return groups;
 	}, {});
-	
+	// 每个分组按展示名排序
+	for (const provider of Object.keys(groupedModels)) {
+		groupedModels[provider].sort((a, b) =>
+			(a.name ?? a.id).localeCompare(b.name ?? b.id),
+		);
+	}
+
 	// 供应商排序：常见的放前面
 	const providerOrder = ['anthropic', 'openai', 'google', 'deepseek', 'other'];
 	const sortedProviders = Object.keys(groupedModels).sort((a, b) => {
@@ -537,7 +567,37 @@ export function ModelPicker(props: {
 		if (bIndex !== -1) return 1;
 		return a.localeCompare(b);
 	});
-	
+
+	const renderModelRow = (model: AvailableModel) => {
+		const modelKey = `${model.provider}/${model.id}`;
+		const selected = modelKey === currentModelKey;
+		const favorited = favoritesSet.has(model.id);
+		return (
+			<button
+				key={modelKey}
+				className={`picker-palette-item${selected ? " selected" : ""}`}
+				onClick={() => props.onPick(model)}
+			>
+				{/* 收藏/取消收藏按钮：填充星为收藏，空心为未收藏 */}
+				<span
+					className={`model-favorite-star${favorited ? ' favorited' : ''}`}
+					title={favorited ? t("app.modelUnfavorite") : t("app.modelFavorite")}
+					onClick={(e) => {
+						e.stopPropagation();
+						props.onToggleFavorite(model.id);
+					}}
+				>
+					<Star size={14} strokeWidth={1.8} fill={favorited ? 'currentColor' : 'none'} />
+				</span>
+				<span className="picker-palette-label">{model.name ?? model.id}</span>
+				<span className="picker-palette-desc">
+					{model.provider}/{model.id}
+				</span>
+				{selected && <span className="picker-palette-check">✓</span>}
+			</button>
+		);
+	};
+
 	return (
 		<div className="picker-backdrop" onClick={props.onClose}>
 			<div
@@ -563,43 +623,48 @@ export function ModelPicker(props: {
 					/>
 				</div>
 				<div className="picker-palette-list">
-					{sortedProviders.length > 0 ? (
-						sortedProviders.map((provider) => (
-							<div key={provider} className="model-group">
-								<div
-									className={`model-group-header${collapsedGroups.has(provider) ? ' collapsed' : ''}`}
-									onClick={() => {
-										setCollapsedGroups(prev => {
-											const next = new Set(prev);
-											if (next.has(provider)) next.delete(provider);
-											else next.add(provider);
-											return next;
-										});
-									}}
-								>
-									{provider}
-									<span className="model-group-count">{groupedModels[provider].length}</span>
-								</div>
-								{!collapsedGroups.has(provider) && groupedModels[provider].map((model) => {
-									const modelKey = `${model.provider}/${model.id}`;
-									const selected = modelKey === currentModelKey;
-									return (
-										<button
-											key={modelKey}
-											className={`picker-palette-item${selected ? " selected" : ""}`}
-											onClick={() => props.onPick(model)}
-										>
-											<span className="picker-palette-label">{model.name ?? model.id}</span>
-											<span className="picker-palette-desc">
-												{model.provider}/{model.id}
-											</span>
-											{selected && <span className="picker-palette-check">✓</span>}
-										</button>
-									);
-								})}
+					{/* 收藏分区：置于最顶部，可折叠 */}
+					{favorites.length > 0 && (
+						<div className="model-group model-favorites-group">
+							<div
+								className={`model-group-header${collapsedGroups.has('__favorites__') ? ' collapsed' : ''}`}
+								onClick={() => {
+									setCollapsedGroups(prev => {
+										const next = new Set(prev);
+										if (next.has('__favorites__')) next.delete('__favorites__');
+										else next.add('__favorites__');
+										return next;
+									});
+								}}
+							>
+								<span className={`model-favorites-arrow${collapsedGroups.has('__favorites__') ? ' collapsed' : ''}`}>★</span>
+								{t("app.modelFavorites")}
+								<span className="model-group-count">{favorites.length}</span>
 							</div>
-						))
-					) : (
+							{!collapsedGroups.has('__favorites__') && favorites.map(renderModelRow)}
+						</div>
+					)}
+					{/* 其余模型按供应商分组 */}
+					{sortedProviders.map((provider) => (
+						<div key={provider} className="model-group">
+							<div
+								className={`model-group-header${collapsedGroups.has(provider) ? ' collapsed' : ''}`}
+								onClick={() => {
+									setCollapsedGroups(prev => {
+										const next = new Set(prev);
+										if (next.has(provider)) next.delete(provider);
+										else next.add(provider);
+										return next;
+									});
+								}}
+							>
+								{provider}
+								<span className="model-group-count">{groupedModels[provider].length}</span>
+							</div>
+							{!collapsedGroups.has(provider) && groupedModels[provider].map(renderModelRow)}
+						</div>
+					))}
+					{favorites.length === 0 && sortedProviders.length === 0 && (
 						<div className="picker-palette-empty">{t("app.modelPickerEmpty")}</div>
 					)}
 				</div>

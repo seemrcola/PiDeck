@@ -1,6 +1,44 @@
+import { useState, useRef, useCallback, useEffect } from "react";
+import { X, Plus, Check } from "lucide-react";
 import type { AuthFile, SettingsFile, ModelsFile } from "./configTypes";
 import { ConfigComboboxInput } from "./ConfigShared";
 import { t } from "../i18n";
+
+// ── 可用模型列表聚合（含供应商信息，供 enabledModels 多选用） ──
+
+interface ModelRecord {
+	id: string;
+	provider: string;
+	name?: string;
+}
+
+function collectModels(
+	modelsData?: ModelsFile,
+	discoveredModels?: Record<string, Array<{ id: string; name?: string }>>,
+): ModelRecord[] {
+	const map = new Map<string, ModelRecord>();
+	if (modelsData) {
+		for (const [provider, cfg] of Object.entries(modelsData.providers)) {
+			for (const m of cfg.models) {
+				const key = `${provider}/${m.id}`;
+				if (!map.has(key)) {
+					map.set(key, { id: m.id, provider, name: m.name });
+				}
+			}
+		}
+	}
+	if (discoveredModels) {
+		for (const [provider, models] of Object.entries(discoveredModels)) {
+			for (const m of models) {
+				const key = `${provider}/${m.id}`;
+				if (!map.has(key)) {
+					map.set(key, { id: m.id, provider, name: m.name });
+				}
+			}
+		}
+	}
+	return [...map.values()];
+}
 
 // ── Settings Tab ────────────────────────────────────────
 
@@ -18,6 +56,8 @@ export function SettingsTab(props: {
 }) {
 	const { data, saving } = props;
 	const entries = Object.entries(data);
+	// enabledModels 已配置时合并到 entries 前端展示，未配置时通过「添加」按钮单独显示
+	const hasEnabledModels = "enabledModels" in data;
 
 	return (
 		<div className="config-settings-tab">
@@ -34,7 +74,20 @@ export function SettingsTab(props: {
 				</button>
 			</div>
 			<div className="config-settings-list">
-				{entries.map(([key, value]) => (
+				{/* enabledModels 始终显示在最前面 */}
+				<div className="config-settings-row">
+					<span className="config-settings-key">enabledModels</span>
+					<EnabledModelsInput
+						value={
+							Array.isArray(data.enabledModels) ? data.enabledModels : undefined
+						}
+						models={collectModels(props.modelsData, props.discoveredModels)}
+						onChange={(v) => props.onChange({ ...data, enabledModels: v })}
+					/>
+				</div>
+				{entries
+					.filter(([key]) => key !== "enabledModels")
+					.map(([key, value]) => (
 					<div key={key} className="config-settings-row">
 						<span className="config-settings-key">{key}</span>
 						<SettingsValueInput
@@ -48,8 +101,189 @@ export function SettingsTab(props: {
 						/>
 					</div>
 				))}
+				{!hasEnabledModels && (
+					<div className="config-settings-row config-settings-row--add">
+						<button
+							className="config-btn"
+							onClick={() => props.onChange({ ...data, enabledModels: [] })}
+						>
+							<Plus size={14} />
+							{t("config.settings.addEnabledModels")}
+						</button>
+					</div>
+				)}
 				{entries.length === 0 && <div className="config-empty">{t("config.emptyConfig")}</div>}
 			</div>
+		</div>
+	);
+}
+
+/**
+ * enabledModels 下拉多选：按供应商分组，搜索过滤可用模型，勾选加入列表。
+ * 选中的模型 ID 直接写入 enabledModels 数组，取消勾选即从列表中移除。
+ * 输入含 * 或 ? 时可添加 glob 模式。
+ */
+function EnabledModelsInput(props: {
+	value?: string[];
+	/** 按模型的 provider/id 分组，每项含 provider 信息 */
+	models: ModelRecord[];
+	onChange: (value: string[]) => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const [filter, setFilter] = useState("");
+	const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+	const containerRef = useRef<HTMLDivElement>(null);
+	const selected = new Set(props.value ?? []);
+
+	// 点击外部关闭下拉
+	useEffect(() => {
+		if (!open) return;
+		const handlePointerDown = (event: PointerEvent) => {
+			if (!containerRef.current?.contains(event.target as Node)) {
+				setOpen(false);
+			}
+		};
+		document.addEventListener("pointerdown", handlePointerDown);
+		return () => document.removeEventListener("pointerdown", handlePointerDown);
+	}, [open]);
+
+	const toggleModel = (id: string) => {
+		const next = new Set(selected);
+		if (next.has(id)) {
+			next.delete(id);
+		} else {
+			next.add(id);
+		}
+		props.onChange([...next]);
+	};
+
+	const removeSelected = (id: string) => {
+		const next = new Set(selected);
+		next.delete(id);
+		props.onChange([...next]);
+	};
+
+	// 过滤 & 按供应商分组
+	const normalizedFilter = filter.trim().toLowerCase();
+	const isGlob = filter.includes("*") || filter.includes("?");
+	const filteredModels = normalizedFilter && !isGlob
+		? props.models.filter((m) =>
+				[m.id, m.name, m.provider, `${m.provider}/${m.id}`]
+					.filter(Boolean)
+					.some((v) => v!.toLowerCase().includes(normalizedFilter)),
+			)
+		: props.models;
+
+	// 按供应商分组
+	const grouped = filteredModels.reduce<Record<string, ModelRecord[]>>((acc, m) => {
+		if (!acc[m.provider]) acc[m.provider] = [];
+		acc[m.provider].push(m);
+		return acc;
+	}, {});
+
+	const providerNames = Object.keys(grouped).sort((a, b) => {
+		const order = ["anthropic", "openai", "google", "deepseek", "other"];
+		const ai = order.indexOf(a);
+		const bi = order.indexOf(b);
+		if (ai !== -1 && bi !== -1) return ai - bi;
+		if (ai !== -1) return -1;
+		if (bi !== -1) return 1;
+		return a.localeCompare(b);
+	});
+
+	const hasResults = providerNames.length > 0 || isGlob;
+
+	return (
+		<div ref={containerRef} className="config-enabled-models">
+			<div className="config-enabled-models-tags" onClick={() => setOpen(true)}>
+				{[...selected].map((id) => (
+					<span key={id} className="config-enabled-models-tag">
+						<span>{id}</span>
+						<button
+							type="button"
+							className="config-enabled-models-tag-remove"
+							onClick={(e) => {
+								e.stopPropagation();
+								removeSelected(id);
+							}}
+						>
+							<X size={12} />
+						</button>
+					</span>
+				))}
+				<span className="config-enabled-models-trigger-text">
+					{selected.size === 0
+						? t("config.settings.enabledModelsPlaceholder")
+						: `${selected.size} ${t("config.settings.enabledModelsSelected")}`}
+				</span>
+			</div>
+
+			{open && (
+				<div className="config-enabled-models-dropdown">
+					<div className="config-enabled-models-dropdown-search">
+						<input
+							autoFocus
+							value={filter}
+							onChange={(e) => setFilter(e.target.value)}
+							placeholder={t("config.settings.enabledModelsSearchPlaceholder")}
+						/>
+					</div>
+					<div className="config-enabled-models-dropdown-list">
+						{/* glob 模式行：输入含 * 或 ? 时显示，可勾选为自定义模式 */}
+						{filter && isGlob && (
+							<div className="config-enabled-models-glob-row">
+								<button
+									type="button"
+									className={`config-enabled-models-glob-add${selected.has(filter) ? " selected" : ""}`}
+									onClick={() => toggleModel(filter)}
+								>
+									<span className="config-enabled-models-checkbox">
+										{selected.has(filter) && <Check size={12} />}
+									</span>
+									<span className="config-enabled-models-glob-label">{filter}</span>
+									<span className="config-enabled-models-glob-hint">{t("config.settings.enabledModelsGlobHint")}</span>
+								</button>
+							</div>
+						)}
+						{hasResults && providerNames.map((provider) => (
+							<div key={provider} className="config-enabled-provider-group">
+								{/* 供应商分组头：点击折叠/展开 */}
+								<button
+									type="button"
+									className={`config-enabled-provider-header${collapsed.has(provider) ? " collapsed" : ""}`}
+									onClick={() => {
+										setCollapsed((prev) => {
+											const next = new Set(prev);
+											if (next.has(provider)) next.delete(provider);
+											else next.add(provider);
+											return next;
+										});
+									}}
+								>
+									<span className="config-enabled-provider-name">{provider}</span>
+									<span className="config-enabled-provider-count">{grouped[provider].length}</span>
+								</button>
+								{!collapsed.has(provider) && grouped[provider].map((m) => (
+									<label
+										key={`${m.provider}/${m.id}`}
+										className={`config-enabled-models-option${selected.has(m.id) ? " selected" : ""}`}
+										onClick={() => toggleModel(m.id)}
+									>
+										<span className="config-enabled-models-checkbox">
+											{selected.has(m.id) && <Check size={12} />}
+										</span>
+										<span className="config-enabled-model-label">{m.name ?? m.id}</span>
+										<span className="config-enabled-model-provider">{m.provider}/{m.id}</span>
+									</label>
+								))}
+							</div>
+						))}
+						{!hasResults && (
+							<div className="config-enabled-models-empty">{t("app.modelPickerEmpty")}</div>
+						)}
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

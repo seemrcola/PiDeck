@@ -338,6 +338,10 @@ export type AppSettings = {
 	petPatrolEnabled: boolean;
 	/** 巡游碰边后 idle 停顿时长（分钟），默认 5，范围 1–30 */
 	petPatrolPauseMin: number;
+
+	// ── 模型收藏：ModelPicker 中用 ☆ 标记，收藏的模型在列表中置顶 ──
+	/** 收藏的模型 ID 列表 */
+	favoriteModels: string[];
 };
 
 // ── 桌面宠物类型 ──

@@ -598,6 +598,7 @@ export function App() {
     petScale: 0.8,
     petPatrolEnabled: true,
     petPatrolPauseMin: 5,
+    favoriteModels: [],
   });
   const [settingsNotice, setSettingsNotice] = useState("");
   const [piProxyNotice, setPiProxyNotice] = useState("");
@@ -2725,6 +2726,15 @@ export function App() {
       [activeAgentId]: state,
     }));
     setModelPickerOpen(false);
+  }
+
+  /** 切换模型的收藏状态，收藏的模型在选模型列表中置顶显示 */
+  function toggleFavoriteModel(modelId: string) {
+    const current = settings.favoriteModels ?? [];
+    const next = current.includes(modelId)
+      ? current.filter((id) => id !== modelId)
+      : [...current, modelId];
+    void updateSettings({ favoriteModels: next });
   }
 
   async function cycleThinking() {
@@ -5018,6 +5028,8 @@ ${goalTextRef.current}
           }}
           onClose={() => setModelPickerOpen(false)}
           onPick={selectModel}
+          favoriteModels={settings.favoriteModels}
+          onToggleFavorite={toggleFavoriteModel}
         />
       )}
       {thinkingPickerOpen && (

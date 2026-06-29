@@ -153,6 +153,7 @@ let previewSettings: AppSettings = {
 	petScale: 0.8,
 	petPatrolEnabled: true,
 	petPatrolPauseMin: 5,
+	favoriteModels: [],
 };
 
 export function createPreviewApi(): PiDesktopApi {
