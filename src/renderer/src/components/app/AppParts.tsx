@@ -1236,15 +1236,29 @@ function toolIcon(toolName: string): ReactNode {
 	return <Wrench size={14} />;
 }
 
+function parseToolArgs(value: unknown): Record<string, unknown> | undefined {
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		return value as Record<string, unknown>;
+	}
+	if (typeof value !== "string" || !value.trim()) return undefined;
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+			? parsed as Record<string, unknown>
+			: undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 /** 从工具消息 meta 中提取副标题（文件路径或命令），让 trigger 行能体现工具作用对象。
- *  pi 的工具参数放在 meta.args 里（如 read 的 path、bash 的 command、edit 的 filePath），
- *  这里同时兼容历史平铺 meta.path/command/file 的写法。 */
+ *  pi 的工具参数可能是对象，也可能已被主进程截断/序列化为 JSON 字符串；两种格式都要兼容，否则 bash 命令摘要会丢失。 */
 function getToolSubtitle(message: ChatMessage): string {
 	const meta = message.meta;
 	if (!meta) return "";
 	// 优先从 args 取参数（pi 工具事件的标准结构）
-	const args = meta.args as Record<string, unknown> | undefined;
-	if (args && typeof args === "object") {
+	const args = parseToolArgs(meta.args);
+	if (args) {
 		for (const key of ["filePath", "file_path", "path", "file", "command", "pattern", "query"]) {
 			const v = args[key];
 			if (typeof v === "string" && v) return v;
@@ -1340,7 +1354,7 @@ export const ToolCard = memo(function ToolCard(props: {
 		typeof props.message.meta?.durationMs === "number"
 			? props.message.meta.durationMs
 			: undefined;
-	const showDuration = status !== "running" && durationMs !== undefined && durationMs > 100;
+	const showDuration = status !== "running" && durationMs !== undefined;
 	// 模型用 read 工具读取 SKILL.md 来加载 skill：识别后以 skill 徽标样式渲染，
 	// 让用户看到模型主动调用了哪个 skill（区别于普通文件读取）
 	const skillName = getReadSkillName(props.message);
@@ -1378,11 +1392,6 @@ export const ToolCard = memo(function ToolCard(props: {
 				{!isSkillRead && kindLabel && (
 					<span className="tool-card-kind">{kindLabel}</span>
 				)}
-				{subtitle && (
-					<span className="tool-card-subtitle" title={subtitle}>
-						{subtitle}
-					</span>
-				)}
 				<span className="tool-card-status">
 					{status === "running" && <span className="tool-card-spinner" aria-hidden="true" />}
 					{statusLabel}
@@ -1390,6 +1399,11 @@ export const ToolCard = memo(function ToolCard(props: {
 				{showDuration && (
 					<span className="tool-card-duration" title={t("tool.durationTitle")}>
 						{formatDuration(durationMs)}
+					</span>
+				)}
+				{subtitle && (
+					<span className="tool-card-subtitle" title={subtitle}>
+						{subtitle}
 					</span>
 				)}
 				<ChevronDown
